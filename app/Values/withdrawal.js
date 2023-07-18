@@ -1,51 +1,51 @@
 module.exports = {
   statusC: {
     PENDING: {
-      status: "PENDING",
+      status: 'PENDING'
     },
     ACCEPTED: {
-      status: "ACCEPTED",
+      status: 'ACCEPTED'
     },
     REJECTED: {
-      status: "REJECTED",
-    },
+      status: 'REJECTED'
+    }
   },
 
   userIdC: (userId) => {
     console.log({ 2: { userId } })
 
     return {
-      userId,
+      userId
     }
   },
 
   agentC: (agent) => {
     return {
-      agent,
+      agent
     }
   },
 
   superAgentC: (superAgent) => {
     return {
-      superAgent,
+      superAgent
     }
   },
 
   cityC: (city) => {
     return {
-      city,
+      city
     }
   },
 
   userTypeC: (userType) => {
     return {
-      userType,
+      userType
     }
   },
 
   trackingCodeC: (Code) => {
     const trackingCode = {
-      $regex: Code,
+      $regex: Code
     }
     return { trackingCode }
   },
@@ -62,5 +62,5 @@ module.exports = {
       endDate = new Date(endDate)
       return { createdAt: { $lt: new Date(endDate.setDate(endDate.getDate() + 1)) } }
     }
-  },
+  }
 }

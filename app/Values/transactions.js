@@ -17,7 +17,7 @@ module.exports = {
       ]
     },
     COMMISSION: {
-      $or: [{ reason: 'SUBSCRIPTION_COMMISSION' }, { reason: 'TRAVEL_COST_COMMISSION' }, { reason: 'PAY_DEBTS_COMMISSION' }]
+      $or: [{ reason: 'SERVICE_SUBSCRIPTION_COMMISSION' }, { reason: 'TRAVEL_COST_COMMISSION' }, { reason: 'PAY_DEBTS_COMMISSION' }]
     },
     TRAVEL_COST: { $or: [{ reason: 'TRAVEL_COST' }] },
     CHARGE_WALLET: { $or: [{ reason: 'CHARGE_WALLET' }, { reason: 'CHARGE_WALLET_INVOICE' }] },

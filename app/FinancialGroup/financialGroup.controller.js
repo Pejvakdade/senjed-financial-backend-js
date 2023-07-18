@@ -12,13 +12,12 @@ class FinancialGroupController {
   }
 
   async createFinancialGroup (req, res) {
-    const { groupType, travelShare, subscription, name } = req.body
-    await this.validatorService.createFinancialGroupValidation(req.body)
+    const { agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
     await this.financialGroupService.createFinancialGroup({
-      groupType,
-      travelShare,
-      subscription,
-      name
+      agentSubscription,
+      name,
+      subscriptionStudent,
+      subscriptionAgent
     })
     return ResponseHandler.send({
       res,
@@ -29,7 +28,6 @@ class FinancialGroupController {
 
   async deleteFinancialGroup (req, res) {
     const { id } = req.params
-    await this.validatorService.validMongooseId(id)
     // call axios taha for checking financialGroup is used or not
     const result = await this.utilService.axiosInstance({
       url: Constant.financialIsUsed + `/${id}`,
@@ -51,54 +49,22 @@ class FinancialGroupController {
   }
 
   async updateFinancialGroup (req, res) {
-    const {
-      groupType,
-      name,
-      travelShareAdmin,
-      travelShareDriver,
-      travelShareAgent,
-      travelShareSuperAgent,
-      travelShareTax,
-      subscriptionShareAdmin,
-      subscriptionShareAgent,
-      subscriptionShareSuperAgent,
-      subscriptionSharetax,
-      subscriptionCycle,
-      subscriptionFee
-    } = req.body
+    const { agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
     const { id } = req.params
     // await this.validatorService.validMongooseId(id)
     console.log({
       id,
-      groupType,
+      agentSubscription,
       name,
-      travelShareAdmin,
-      travelShareDriver,
-      travelShareAgent,
-      travelShareSuperAgent,
-      travelShareTax,
-      subscriptionShareAdmin,
-      subscriptionShareAgent,
-      subscriptionShareSuperAgent,
-      subscriptionSharetax,
-      subscriptionCycle,
-      subscriptionFee
+      subscriptionStudent,
+      subscriptionAgent
     })
     const result = await this.financialGroupService.updateFinancialGroup({
       id,
-      groupType,
+      agentSubscription,
       name,
-      travelShareAdmin,
-      travelShareDriver,
-      travelShareAgent,
-      travelShareSuperAgent,
-      travelShareTax,
-      subscriptionShareAdmin,
-      subscriptionShareAgent,
-      subscriptionShareSuperAgent,
-      subscriptionSharetax,
-      subscriptionCycle,
-      subscriptionFee
+      subscriptionStudent,
+      subscriptionAgent
     })
     return ResponseHandler.send({
       res,
@@ -109,8 +75,8 @@ class FinancialGroupController {
   }
 
   async getFinancialGroup (req, res) {
-    const { page } = req.query
-    const result = await this.financialGroupService.getFinancialGroup(page)
+    const { page, limit } = req.query
+    const result = await this.financialGroupService.getFinancialGroup({ page, limit })
     return ResponseHandler.send({
       res,
       statusCode: StatusCodes.RESPONSE_SUCCESSFUL,

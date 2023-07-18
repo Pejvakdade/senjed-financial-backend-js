@@ -5,12 +5,12 @@ class FinancialGroupRepository {
     this.utilService = utilService
   }
 
-  async createFinancialGroup ({ groupType, travelShare, subscription, name }) {
+  async createFinancialGroup ({ agentSubscription, name, subscriptionStudent, subscriptionAgent }) {
     await FinancialGroup({
+      agentSubscription,
       name,
-      groupType,
-      travelShare,
-      subscription
+      subscriptionStudent,
+      subscriptionAgent
     }).save()
   }
 
@@ -18,7 +18,7 @@ class FinancialGroupRepository {
     await FinancialGroup.findByIdAndDelete(id)
   }
 
-  async getFinancialGroup (page) {
+  async getFinancialGroup ({ page, limit }) {
     if (!page) {
       const result = await FinancialGroup.find()
       return result
@@ -26,7 +26,7 @@ class FinancialGroupRepository {
     const result = await FinancialGroup.paginate(
       {},
       {
-        limit: 10,
+        limit,
         page
       }
     )
@@ -58,38 +58,14 @@ class FinancialGroupRepository {
     return result
   }
 
-  async updateFinancialGroup ({
-    id,
-    groupType,
-    name,
-    travelShareAdmin,
-    travelShareDriver,
-    travelShareSuperAgent,
-    travelShareAgent,
-    travelShareTax,
-    subscriptionShareAdmin,
-    subscriptionShareAgent,
-    subscriptionShareSuperAgent,
-    subscriptionSharetax,
-    subscriptionCycle,
-    subscriptionFee
-  }) {
+  async updateFinancialGroup ({ id, agentSubscription, name, subscriptionStudent, subscriptionAgent }) {
     const result = await FinancialGroup.findByIdAndUpdate(
       id,
       {
-        groupType,
+        agentSubscription,
         name,
-        'travelShare.admin': travelShareAdmin,
-        'travelShare.superAgent': travelShareSuperAgent,
-        'travelShare.agent': travelShareAgent,
-        'travelShare.driver': travelShareDriver,
-        'travelShare.tax': travelShareTax,
-        'subscription.share.admin': subscriptionShareAdmin,
-        'subscription.share.agent': subscriptionShareAgent,
-        'subscription.share.superAgent': subscriptionShareSuperAgent,
-        'subscription.share.tax': subscriptionSharetax,
-        'subscription.cycle': subscriptionCycle,
-        'subscription.fee': subscriptionFee
+        subscriptionStudent,
+        subscriptionAgent
       },
       { new: true }
     )

@@ -1,50 +1,66 @@
-const Discount = require('../Models/discount.model')
-const User = require('../Models/user.model')
+const User = require('../models/user.model')
+const Service = require('../models/service.model')
+const Student = require('../models/student.model')
+const moment = require('moment')
 
 class FinancialRepository {
   constructor () {}
-  createDiscount = async (data) => {
-    await Discount.deleteMany({ expire: { $lte: new Date() } })
-    return await Discount(data).save()
+  findServiceById = async (serviceId) => {
+    return await Service.findById(serviceId).populate('student parent')
   }
 
-  useDiscount = async ({ userId, code }) => {
-    const discount = await Discount.findOne({ code })
-    if (discount) {
-      if (!discount.usedFor.includes(userId)) {
-        if (!discount.type) {
-          await User.updateOne({ _id: userId }, { $inc: { balance: discount.price } })
-          discount.usedFor.push(userId)
-          return !!await discount.save()
-        } else {
-          console.log('process for percent type discount')
-          return false
-        }
-      }
+  async findAdminId () {
+    const result = await User.findOne({ userTypes: { $in: ['ADMIN'] } })
+    return result._id
+  }
+
+  async findBankSchoolId () {
+    const result = await User.findOne({ userTypes: { $in: ['BANK_SCHOOL'] } })
+    return result._id
+  }
+
+  async findCommissionManagerSchoolId () {
+    const result = await User.findOne({ userTypes: { $in: ['COMMISSION_MANAGER_SCHOOL'] } })
+    return result._id
+  }
+
+  async findTaxId () {
+    const result = await User.findOne({ userTypes: { $in: ['TAX'] } })
+    return result._id
+  }
+
+  async addSubscriptionDay ({ serviceId, days, date }) {
+    const foundedService = await Service.findById(serviceId)
+    let updatedService
+    if (days) {
+      updatedService = await Service.findByIdAndUpdate(
+        serviceId,
+        {
+          expire: moment(foundedService.expire).add(days, 'd').format()
+        },
+        { new: true }
+      )
+    } else {
+      updatedService = await Service.findByIdAndUpdate(
+        serviceId,
+        {
+          'foundedService.expire': moment(date).format()
+        },
+        { new: true }
+      )
     }
-    return false
+
+    return updatedService
   }
 
-  allDiscount = async (filters = {}, { page = 1, limit = 10 }) =>
-    await Discount.paginate(filters, { limit, page, lean: true, sort: { createdAt: -1 } })
-
-  async getDriverListForCity (city) {
-    console.log({ city })
-    const users = await User.find({
-      userTypes: { $in: 'DRIVER' },
-      'driverInformation.city': city
-    }).populate('driverInformation.agentId')
-    return users
+  async deleteBlockByReasonAndUserType ({ serviceId, blockReason }) {
+    console.log({ serviceId, blockReason })
+    return await Service.findByIdAndUpdate(serviceId, { $pull: { blocks: { reason: blockReason } } }, { new: true }).exec()
   }
 
-  async findallDriver () {
-    return await User.find({ userTypes: { $in: 'DRIVER' } })
-    // return await User.find({_id:"6307430f0c3c6859f3ca1c42"})
-  }
-
-  async updateSubscriptionCount ({ subscriptionCount, driverId }) {
-    await User.findByIdAndUpdate(driverId, { 'driverInformation.subscriptionCount': subscriptionCount })
-    return true
+  async checkWallet ({ id, amount }) {
+    const user = await User.findById(id)
+    return user.balance >= amount
   }
 }
 module.exports = new FinancialRepository()

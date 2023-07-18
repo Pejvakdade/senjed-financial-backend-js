@@ -10,6 +10,7 @@ const NESHAN_API_KEY = 'service.wF0qrlzXzYAAdhI9EzVXwC4zq95LqMGrUQnf0JmE'
 const SADERAT_PAY = 'https://sepehr.shaparak.ir:8080/Pay'
 const getUserInfoUrl = 'http://localhost:8451/api/v1/archivist/user-by-token'
 const getUserByIdUrl = 'http://localhost:8451/api/v1/archivist/user-by-id'
+const SEND_MESSAGE_CHAPAR_RAYGAN = 'http://localhost:8455/api/v1/chapar/sms/template/message2'
 const accountantById = 'http://localhost:8451/api/v1/accountant/charge-wallet_by_id'
 const accountantCheckWalletById = 'http://localhost:8451/api/v1/accountant/check-wallet-by-id'
 const findAdminById = 'http://localhost:8451/api/v1/administrator/find-admin-id'
@@ -66,6 +67,7 @@ module.exports = {
   searchUserByNationalCode,
   updateSmsFlagAfterPay,
   searchUserByPhoneNumber,
+  SEND_MESSAGE_CHAPAR_RAYGAN,
   getAllUsers,
   unblockByBlockId,
   updateInvoiceStatus,

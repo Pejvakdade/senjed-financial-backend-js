@@ -4,12 +4,12 @@ class FinancialGroupService {
     this.financialGroupRepository = financialGroupRepository
   }
 
-  async createFinancialGroup ({ groupType, travelShare, subscription, name }) {
+  async createFinancialGroup ({ agentSubscription, name, subscriptionStudent, subscriptionAgent }) {
     await this.financialGroupRepository.createFinancialGroup({
-      groupType,
-      travelShare,
-      subscription,
-      name
+      agentSubscription,
+      name,
+      subscriptionStudent,
+      subscriptionAgent
     })
   }
 
@@ -19,8 +19,8 @@ class FinancialGroupService {
 
   updateFinancialGroup = async (arg) => await this.financialGroupRepository.updateFinancialGroup(arg)
 
-  async getFinancialGroup (page) {
-    const result = await this.financialGroupRepository.getFinancialGroup(page)
+  async getFinancialGroup ({ page, limit }) {
+    const result = await this.financialGroupRepository.getFinancialGroup({ page, limit })
     return result
   }
 
