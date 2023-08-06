@@ -1,80 +1,75 @@
-const FinancialGroup = require('./financialGroup.model')
-const UtilService = require('../Utils/util.service')
+const FinancialGroup = require("./financialGroup.model")
+const Service = require("../models/service.model")
+const UtilService = require("../Utils/util.service")
 class FinancialGroupRepository {
-  constructor (utilService) {
+  constructor(utilService) {
     this.utilService = utilService
   }
 
-  async createFinancialGroup ({ agentSubscription, name, subscriptionStudent, subscriptionAgent }) {
-    await FinancialGroup({
-      agentSubscription,
-      name,
-      subscriptionStudent,
-      subscriptionAgent
-    }).save()
-  }
-
-  async deleteFinancialGroup (id) {
-    await FinancialGroup.findByIdAndDelete(id)
-  }
-
-  async getFinancialGroup ({ page, limit }) {
-    if (!page) {
-      const result = await FinancialGroup.find()
-      return result
-    }
-    const result = await FinancialGroup.paginate(
-      {},
-      {
-        limit,
-        page
-      }
-    )
+  async createFinancialGroup({ type, agentSubscription, name, subscriptionStudent, subscriptionAgent }) {
+    console.log({ 2: { type, agentSubscription, name, subscriptionStudent, subscriptionAgent } })
+    const result = await FinancialGroup({ type, agentSubscription, name, subscriptionStudent, subscriptionAgent }).save()
     return result
   }
 
-  async getFinancialGroupById (id) {
+  async deleteFinancialGroup(id) {
+    await FinancialGroup.findByIdAndDelete(id)
+  }
+
+  async financialGroupExist(service) {
+    return !!(await Service.findOne({ schoolFinancialGroup: service }))
+  }
+
+  async findFinancialGroup({ query, page, limit }) {
+    let result
+    if (!limit) {
+      result = await FinancialGroup.find(query)
+      return result
+    }
+    result = await FinancialGroup.paginate(query, {
+      limit,
+      page,
+    })
+    return result
+  }
+
+  async getFinancialGroupById(id) {
     const result = await FinancialGroup.findById(id)
     return result
   }
 
-  async getFinancialGroupByName (name, page) {
+  async getFinancialGroupByName(name, page) {
     if (!name) {
-      name = ''
+      name = ""
     }
-    const regex = new RegExp(await this.utilService.escapeRegex(name), 'gi')
+    const regex = new RegExp(await this.utilService.escapeRegex(name), "gi")
     const result = await FinancialGroup.paginate(
       { name: regex },
       {
         limit: 10,
-        page
+        page,
       }
     )
     return result
   }
 
-  async getByName (name) {
+  async getByName(name) {
     const result = await FinancialGroup.findOne({ name })
     return result
   }
 
-  async updateFinancialGroup ({ id, agentSubscription, name, subscriptionStudent, subscriptionAgent }) {
+  async updateFinancialGroup({ id, type, agentSubscription, name, subscriptionStudent, subscriptionAgent }) {
     const result = await FinancialGroup.findByIdAndUpdate(
       id,
-      {
-        agentSubscription,
-        name,
-        subscriptionStudent,
-        subscriptionAgent
-      },
+      { type, agentSubscription, name, subscriptionStudent, subscriptionAgent },
       { new: true }
     )
     return result
   }
 
-  async hasSubscription (id) {
+  async hasSubscription(id) {
     const result = await FinancialGroup.findById(id)
-    if (typeof result.hasSubscription === 'boolean') {
+    if (typeof result.hasSubscription === "boolean") {
       return result.hasSubscription
     }
   }

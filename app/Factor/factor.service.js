@@ -1,17 +1,17 @@
-const FactorRepository = require('./factor.repository')
-const UtilService = require('../Utils/util.service')
-const FinancialGroupService = require('../FinancialGroup/financialGroup.service')
-const Api = require('../Api')
-const ErrorHandler = require('../Handler/ErrorHandler')
-const { StatusCodes } = require('../Values')
+const FactorRepository = require("./factor.repository")
+const UtilService = require("../Utils/util.service")
+const FinancialGroupService = require("../FinancialGroup/financialGroup.service")
+const Api = require("../Api")
+const ErrorHandler = require("../Handler/ErrorHandler")
+const { StatusCodes } = require("../Values")
 
 class FactorService {
-  constructor (factorRepository, utilService) {
+  constructor(factorRepository, utilService) {
     this.factorRepository = factorRepository
     this.utilService = utilService
   }
 
-  async createFactor ({ price, serviceId, oldSubscriptionDate, newSubscriptionDate }) {
+  async createFactor({ price, serviceId, oldSubscriptionDate, newSubscriptionDate }) {
     const foundedService = await this.factorRepository.findService(serviceId)
     if (foundedService) {
       return await this.factorRepository.createFactor({
@@ -23,31 +23,41 @@ class FactorService {
         driver: foundedService?.driver,
         company: foundedService?.company,
         oldSubscriptionDate,
-        newSubscriptionDate
+        newSubscriptionDate,
       })
     } else false
   }
 
-  async checkExpireServices () {
+  async checkExpireServices() {
     const foundedExpireServices = await this.factorRepository.foundedExpireServices()
     const foundedExpireNowServices = await this.factorRepository.foundedExpireNowServices()
     console.log({ foundedExpireServices: foundedExpireServices.length })
     for (const i in foundedExpireServices) {
       const hasFactor = await this.factorRepository.hasFactor({
         serviceId: foundedExpireServices[i]._id,
-        oldSubscriptionDate: foundedExpireServices[i].expire
+        oldSubscriptionDate: foundedExpireServices[i].expire,
       })
+      console.log({ hasFactor })
       const oldSubscriptionDate = await new Date(foundedExpireServices[i].expire)
-      if (!hasFactor) {
-        const foundedFinancialGroup = await FinancialGroupService.getFinancialGroupById(foundedExpireServices[i].schoolFinancialGroup)
+      consol.elog({ oldSubscriptionDate })
+      if (hasFactor === false) {
+        const foundedFinancialGroup = await FinancialGroupService.getFinancialGroupById(foundedExpireServices[i]?.schoolFinancialGroup)
+        console.log({ foundedFinancialGroup })
         const newSubscriptionDate = foundedExpireServices[i].expire.setDate(
           foundedExpireServices[i].expire.getDate() + foundedFinancialGroup.subscriptionStudent.cycle
         )
+        // const newSubscriptionDate = foundedExpireServices[i].expire.setDate(30)
+        console.log({
+          price: foundedExpireServices[i].price,
+          serviceId: foundedExpireServices[i]._id,
+          oldSubscriptionDate,
+          newSubscriptionDate,
+        })
         await this.createFactor({
           price: foundedExpireServices[i].price,
           serviceId: foundedExpireServices[i]._id,
           oldSubscriptionDate,
-          newSubscriptionDate
+          newSubscriptionDate,
         })
       }
     }
@@ -56,11 +66,11 @@ class FactorService {
     }
   }
 
-  async factorListByServiceId (serviceId) {
+  async factorListByServiceId(serviceId) {
     return await this.factorRepository.factorListByServiceId(serviceId)
   }
 
-  async factorPriceByServiceId (serviceId) {
+  async factorPriceByServiceId(serviceId) {
     const factorList = await this.factorRepository.factorListByServiceId(serviceId)
     console.log({ factorList })
     const factors = []
@@ -75,14 +85,14 @@ class FactorService {
     return { price, count: factorList.length, factorsList: factors }
   }
 
-  async blockService ({ serviceId, userType, reason, description, managerComment, blocker, blockerUserType, blockDate = Date.now() }) {
+  async blockService({ serviceId, userType, reason, description, managerComment, blocker, blockerUserType, blockDate = Date.now() }) {
     const isBlockByReason = await this.factorRepository.isBlockByReason({ serviceId, reason })
     if (!isBlockByReason) {
       const foundedBlock = await this.factorRepository.findServiceBlocks(serviceId)
       foundedBlock.push({ reason, description, blocker, blockerUserType, blockDate, userType, managerComment })
       return await this.factorRepository.blockService({
         serviceId,
-        foundedBlock
+        foundedBlock,
       })
     }
   }

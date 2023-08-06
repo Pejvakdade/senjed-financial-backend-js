@@ -1,20 +1,20 @@
-const FinancialRepository = require('./financial.repository')
-const FinancialGroupService = require('../FinancialGroup/financialGroup.service')
-const FactorService = require('../Factor/factor.service')
+const FinancialRepository = require("./financial.repository")
+const FinancialGroupService = require("../FinancialGroup/financialGroup.service")
+const FactorService = require("../Factor/factor.service")
 
-const TransactionRepository = require('../Transaction/transaction.repository')
-const UtilService = require('../Utils/util.service')
-const Api = require('../Api')
-const ErrorHandler = require('../Handler/ErrorHandler')
-const { StatusCodes, Message } = require('../Values')
+const TransactionRepository = require("../Transaction/transaction.repository")
+const UtilService = require("../Utils/util.service")
+const Api = require("../Api")
+const ErrorHandler = require("../Handler/ErrorHandler")
+const { StatusCodes, Message } = require("../Values")
 
 class FinancialService {
-  constructor (financialRepository, utilService) {
+  constructor(financialRepository, utilService) {
     this.financialRepository = financialRepository
     this.utilService = utilService
   }
 
-  async internalMoneyTransfer ({
+  async internalMoneyTransfer({
     withdrawalId,
     reason,
     payerId,
@@ -25,7 +25,7 @@ class FinancialService {
     amount,
     description,
     isOnline = false,
-    subscribe
+    subscribe,
   }) {
     console.log({ receiverType })
     // reason: "SERVICE_SUBSCRIPTION_COMMISSION",
@@ -37,12 +37,12 @@ class FinancialService {
     // subscribe: foundedTransaction._id,
     const checkWalletAmount = await this.financialRepository.checkWallet({
       id: payerId,
-      amount
+      amount,
     })
     if (!checkWalletAmount) {
       throw new ErrorHandler({
         httpCode: 400,
-        statusCode: StatusCodes.ERROR_INSUFFICIENT_BALANCE
+        statusCode: StatusCodes.ERROR_INSUFFICIENT_BALANCE,
       })
     }
 
@@ -58,7 +58,7 @@ class FinancialService {
       isForClient,
       isDeposit: false,
       withdrawalId,
-      subscribe
+      subscribe,
     })
     await Api.accountantChargeWalletById({ id: payerId, amount: -amount })
     await TransactionRepository.createTransaction({
@@ -73,12 +73,12 @@ class FinancialService {
       isForClient,
       isDeposit: true,
       withdrawalId,
-      subscribe
+      subscribe,
     })
     await Api.accountantChargeWalletById({ id: receiverId, amount })
   }
 
-  async paySubscriptionSuccess ({ foundedTransaction }) {
+  async paySubscriptionSuccess({ foundedTransaction }) {
     const foundedService = await this.financialRepository.findServiceById(foundedTransaction.service)
     const foundedFinancialGroup = await FinancialGroupService.getFinancialGroupById(foundedService?.schoolFinancialGroup)
 
@@ -88,30 +88,30 @@ class FinancialService {
     //* add subscription days
     await this.financialRepository.addSubscriptionDay({
       serviceId: foundedService._id,
-      days: Number(foundedFinancialGroup.subscriptionStudent.cycle) * Number(foundedTransaction.count)
+      days: Number(foundedFinancialGroup.subscriptionStudent.cycle) * Number(foundedTransaction.count),
     })
 
     //* unblock Service
     await this.financialRepository.deleteBlockByReasonAndUserType({
       serviceId: foundedService._id,
-      blockReason: 20011
+      blockReason: 20011,
     })
 
     //* change factor status
     await FactorService.changeFactorStatus({
       factorsList: foundedTransaction.factorsList,
       paidBy: foundedTransaction.payerId,
-      paidDate: Date.now()
+      paidDate: Date.now(),
     })
   }
 
-  async transferSubscriptionShare ({ foundedTransaction, foundedService, foundedFinancialGroup }) {
+  async transferSubscriptionShare({ foundedTransaction, foundedService, foundedFinancialGroup }) {
     const shares = {
       admin: foundedFinancialGroup.subscriptionStudent.share.admin,
       superAgent: foundedFinancialGroup.subscriptionStudent.share.superAgent,
       company: foundedFinancialGroup.subscriptionStudent.share.company,
       driver: foundedFinancialGroup.subscriptionStudent.share.driver,
-      tax: foundedFinancialGroup.subscriptionStudent.share.tax
+      tax: foundedFinancialGroup.subscriptionStudent.share.tax,
     }
     const foundedCommissionManagerSchoolId = await this.financialRepository.findCommissionManagerSchoolId()
     console.log({ foundedCommissionManagerSchoolId })
@@ -119,222 +119,223 @@ class FinancialService {
     const foundedTaxId = await this.financialRepository.findTaxId()
 
     switch (foundedTransaction.payerType) {
-      case 'PASSENGER':
+      case "PASSENGER":
         //* send message to passenger
-        Api.sendMessageChapar({
-          userId: foundedTransaction.parent,
-          message: Message.SUBSCRIPTION_PARRENT_SMS
-        })
+        // Api.sendMessageChapar({
+        //   userId: foundedTransaction.parent,
+        //   message: Message.SUBSCRIPTION_PARRENT_SMS
+        // })
+        //todo
 
         // COMMISSION_MANAGER_SCHOOL
         await this.internalMoneyTransfer({
-          reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+          reason: "SERVICE_SUBSCRIPTION_COMMISSION",
           payerId: foundedTransaction.payerId,
-          payerType: 'PASSENGER',
+          payerType: "PASSENGER",
           receiverId: foundedCommissionManagerSchoolId,
-          receiverType: 'COMMISSION_MANAGER_SCHOOL',
+          receiverType: "COMMISSION_MANAGER_SCHOOL",
           amount: foundedTransaction.amount,
-          subscribe: foundedTransaction._id
+          subscribe: foundedTransaction._id,
         })
 
         // BANK_SCHOOL
         await this.internalMoneyTransfer({
-          reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+          reason: "SERVICE_SUBSCRIPTION_COMMISSION",
           payerId: foundedCommissionManagerSchoolId,
-          payerType: 'COMMISSION_MANAGER_SCHOOL',
+          payerType: "COMMISSION_MANAGER_SCHOOL",
           receiverId: foundedBankSchoolId,
-          receiverType: 'BANK_SCHOOL',
+          receiverType: "BANK_SCHOOL",
           amount: (foundedTransaction.amount * shares.admin) / 100,
-          subscribe: foundedTransaction._id
+          subscribe: foundedTransaction._id,
         })
 
         // SUPER_AGENT
         if (foundedTransaction?.superAgent) {
           await this.internalMoneyTransfer({
-            reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
-            payerType: 'COMMISSION_MANAGER_SCHOOL',
+            payerType: "COMMISSION_MANAGER_SCHOOL",
             receiverId: foundedTransaction?.superAgent,
-            receiverType: 'SUPER_AGENT_SCHOOL',
+            receiverType: "SUPER_AGENT_SCHOOL",
             amount: (foundedTransaction.amount * shares.superAgent) / 100,
-            subscribe: foundedTransaction._id
+            subscribe: foundedTransaction._id,
           })
         }
 
         // COMPANY
         if (foundedTransaction?.company) {
           await this.internalMoneyTransfer({
-            reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
-            payerType: 'COMMISSION_MANAGER_SCHOOL',
+            payerType: "COMMISSION_MANAGER_SCHOOL",
             receiverId: foundedTransaction?.company,
-            receiverType: 'COMPANY',
+            receiverType: "COMPANY",
             amount: (foundedTransaction.amount * shares.company) / 100,
-            subscribe: foundedTransaction._id
+            subscribe: foundedTransaction._id,
           })
         }
 
         // DRIVER
         if (foundedTransaction?.driver) {
           await this.internalMoneyTransfer({
-            reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
-            payerType: 'COMMISSION_MANAGER_SCHOOL',
+            payerType: "COMMISSION_MANAGER_SCHOOL",
             receiverId: foundedTransaction?.driver,
-            receiverType: 'DRIVER',
+            receiverType: "DRIVER",
             amount: (foundedTransaction.amount * shares.driver) / 100,
-            subscribe: foundedTransaction._id
+            subscribe: foundedTransaction._id,
           })
         }
 
         // TAX
         if (foundedTransaction?.driver) {
           await this.internalMoneyTransfer({
-            reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
-            payerType: 'COMMISSION_MANAGER_SCHOOL',
+            payerType: "COMMISSION_MANAGER_SCHOOL",
             receiverId: foundedTaxId,
-            receiverType: 'TAX',
+            receiverType: "TAX",
             amount: (foundedTransaction.amount * shares.tax) / 100,
-            subscribe: foundedTransaction._id
+            subscribe: foundedTransaction._id,
           })
         }
 
         break
 
-      case 'DRIVER':
+      case "DRIVER":
         //* send message to passenger
         Api.sendMessageChapar({
           userId: foundedTransaction.parent,
-          message: Message.SUBSCRIPTION_PARRENT_SMS
+          message: Message.SUBSCRIPTION_PARRENT_SMS,
         })
         //* send message to Driver
         Api.sendMessageChapar({
           userId: foundedTransaction.parent,
-          message: Message.SUBSCRIPTION_DRIVER_SMS
+          message: Message.SUBSCRIPTION_DRIVER_SMS,
         })
         // COMMISSION_MANAGER_SCHOOL
         await this.internalMoneyTransfer({
-          reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+          reason: "SERVICE_SUBSCRIPTION_COMMISSION",
           payerId: foundedTransaction.payerId,
-          payerType: 'DRIVER',
+          payerType: "DRIVER",
           receiverId: foundedCommissionManagerSchoolId,
-          receiverType: 'COMMISSION_MANAGER_SCHOOL',
+          receiverType: "COMMISSION_MANAGER_SCHOOL",
           amount: foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100,
-          subscribe: foundedTransaction._id
+          subscribe: foundedTransaction._id,
         })
 
         // BANK_SCHOOL
         await this.internalMoneyTransfer({
-          reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+          reason: "SERVICE_SUBSCRIPTION_COMMISSION",
           payerId: foundedCommissionManagerSchoolId,
-          payerType: 'COMMISSION_MANAGER_SCHOOL',
+          payerType: "COMMISSION_MANAGER_SCHOOL",
           receiverId: foundedBankSchoolId,
-          receiverType: 'BANK_SCHOOL',
+          receiverType: "BANK_SCHOOL",
           amount: (foundedTransaction.amount * shares.admin) / 100,
-          subscribe: foundedTransaction._id
+          subscribe: foundedTransaction._id,
         })
 
         // SUPER_AGENT
         if (foundedTransaction?.superAgent) {
           await this.internalMoneyTransfer({
-            reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
-            payerType: 'COMMISSION_MANAGER_SCHOOL',
+            payerType: "COMMISSION_MANAGER_SCHOOL",
             receiverId: foundedTransaction?.superAgent,
-            receiverType: 'SUPER_AGENT_SCHOOL',
+            receiverType: "SUPER_AGENT_SCHOOL",
             amount: (foundedTransaction.amount * shares.superAgent) / 100,
-            subscribe: foundedTransaction._id
+            subscribe: foundedTransaction._id,
           })
         }
 
         // COMPANY
         if (foundedTransaction?.company) {
           await this.internalMoneyTransfer({
-            reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
-            payerType: 'COMMISSION_MANAGER_SCHOOL',
+            payerType: "COMMISSION_MANAGER_SCHOOL",
             receiverId: foundedTransaction?.company,
-            receiverType: 'COMPANY',
+            receiverType: "COMPANY",
             amount: (foundedTransaction.amount * shares.company) / 100,
-            subscribe: foundedTransaction._id
+            subscribe: foundedTransaction._id,
           })
         }
 
         // TAX
         if (foundedTransaction?.driver) {
           await this.internalMoneyTransfer({
-            reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
-            payerType: 'COMMISSION_MANAGER_SCHOOL',
+            payerType: "COMMISSION_MANAGER_SCHOOL",
             receiverId: foundedTaxId,
-            receiverType: 'TAX',
+            receiverType: "TAX",
             amount: (foundedTransaction.amount * shares.tax) / 100,
-            subscribe: foundedTransaction._id
+            subscribe: foundedTransaction._id,
           })
         }
         break
 
-      case 'COMPANY':
+      case "COMPANY":
         //* send message to passenger
         Api.sendMessageChapar({
           userId: foundedTransaction.parent,
-          message: Message.SUBSCRIPTION_PARRENT_SMS
+          message: Message.SUBSCRIPTION_PARRENT_SMS,
         })
         //* send message to COMPANY
         Api.sendMessageChapar({
           userId: foundedTransaction.company,
-          message: Message.SUBSCRIPTION_DRIVER_COMPANY
+          message: Message.SUBSCRIPTION_DRIVER_COMPANY,
         })
 
         // COMMISSION_MANAGER_SCHOOL
         await this.internalMoneyTransfer({
-          reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+          reason: "SERVICE_SUBSCRIPTION_COMMISSION",
           payerId: foundedTransaction.payerId,
-          payerType: 'COMPANY',
+          payerType: "COMPANY",
           receiverId: foundedCommissionManagerSchoolId,
-          receiverType: 'COMMISSION_MANAGER_SCHOOL',
+          receiverType: "COMMISSION_MANAGER_SCHOOL",
           amount:
             foundedTransaction.amount -
             (foundedTransaction.amount * shares.driver) / 100 -
             (foundedTransaction.amount * shares.company) / 100,
-          subscribe: foundedTransaction._id
+          subscribe: foundedTransaction._id,
         })
 
         // BANK_SCHOOL
         await this.internalMoneyTransfer({
-          reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+          reason: "SERVICE_SUBSCRIPTION_COMMISSION",
           payerId: foundedCommissionManagerSchoolId,
-          payerType: 'COMMISSION_MANAGER_SCHOOL',
+          payerType: "COMMISSION_MANAGER_SCHOOL",
           receiverId: foundedBankSchoolId,
-          receiverType: 'BANK_SCHOOL',
+          receiverType: "BANK_SCHOOL",
           amount: (foundedTransaction.amount * shares.admin) / 100,
-          subscribe: foundedTransaction._id
+          subscribe: foundedTransaction._id,
         })
 
         // SUPER_AGENT
         if (foundedTransaction?.superAgent) {
           await this.internalMoneyTransfer({
-            reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
-            payerType: 'COMMISSION_MANAGER_SCHOOL',
+            payerType: "COMMISSION_MANAGER_SCHOOL",
             receiverId: foundedTransaction?.superAgent,
-            receiverType: 'SUPER_AGENT_SCHOOL',
+            receiverType: "SUPER_AGENT_SCHOOL",
             amount: (foundedTransaction.amount * shares.superAgent) / 100,
-            subscribe: foundedTransaction._id
+            subscribe: foundedTransaction._id,
           })
         }
 
         // TAX
         if (foundedTransaction?.driver) {
           await this.internalMoneyTransfer({
-            reason: 'SERVICE_SUBSCRIPTION_COMMISSION',
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
-            payerType: 'COMMISSION_MANAGER_SCHOOL',
+            payerType: "COMMISSION_MANAGER_SCHOOL",
             receiverId: foundedTaxId,
-            receiverType: 'TAX',
+            receiverType: "TAX",
             amount: (foundedTransaction.amount * shares.tax) / 100,
-            subscribe: foundedTransaction._id
+            subscribe: foundedTransaction._id,
           })
         }
         break
@@ -343,7 +344,7 @@ class FinancialService {
     return true
   }
 
-  async findServiceById (serviceId) {
+  async findServiceById(serviceId) {
     return await this.financialRepository.findServiceById(serviceId)
   }
 }
