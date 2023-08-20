@@ -1,6 +1,7 @@
 const FinancialRepository = require("./financial.repository")
 const FinancialGroupService = require("../FinancialGroup/financialGroup.service")
 const FactorService = require("../Factor/factor.service")
+const FactorRepository = require("../Factor/factor.repository")
 
 const TransactionRepository = require("../Transaction/transaction.repository")
 const UtilService = require("../Utils/util.service")
@@ -39,6 +40,7 @@ class FinancialService {
       id: payerId,
       amount,
     })
+    console.log({ checkWalletAmount })
     if (!checkWalletAmount) {
       throw new ErrorHandler({
         httpCode: 400,
@@ -60,7 +62,7 @@ class FinancialService {
       withdrawalId,
       subscribe,
     })
-    await Api.accountantChargeWalletById({ id: payerId, amount: -amount })
+    await this.chargeWallet({ id: payerId, amount: -amount })
     await TransactionRepository.createTransaction({
       reason,
       payerId,
@@ -75,12 +77,14 @@ class FinancialService {
       withdrawalId,
       subscribe,
     })
-    await Api.accountantChargeWalletById({ id: receiverId, amount })
+    await this.chargeWallet({ id: receiverId, amount })
   }
 
   async paySubscriptionSuccess({ foundedTransaction }) {
+    console.log({ foundedTransaction })
     const foundedService = await this.financialRepository.findServiceById(foundedTransaction.service)
-    const foundedFinancialGroup = await FinancialGroupService.getFinancialGroupById(foundedService?.schoolFinancialGroup)
+    const foundedFinancialGroup = foundedService.financialGroupSchool
+    // const foundedFinancialGroup = await FinancialGroupService.getFinancialGroupById(foundedService?.schoolFinancialGroup)
 
     //* pay others commission And  send sms for payer:
     await this.transferSubscriptionShare({ foundedTransaction, foundedService, foundedFinancialGroup })
@@ -90,15 +94,16 @@ class FinancialService {
       serviceId: foundedService._id,
       days: Number(foundedFinancialGroup.subscriptionStudent.cycle) * Number(foundedTransaction.count),
     })
+    console.log("jjjjjjjsjadjajsjkdjasjkdhaskjdhjkahsjkdhajksdkahdjs")
 
     //* unblock Service
     await this.financialRepository.deleteBlockByReasonAndUserType({
-      serviceId: foundedService._id,
+      serviceId: String(foundedService._id),
       blockReason: 20011,
     })
 
     //* change factor status
-    await FactorService.changeFactorStatus({
+    await FactorRepository.changeFactorStatus({
       factorsList: foundedTransaction.factorsList,
       paidBy: foundedTransaction.payerId,
       paidDate: Date.now(),
@@ -346,6 +351,15 @@ class FinancialService {
 
   async findServiceById(serviceId) {
     return await this.financialRepository.findServiceById(serviceId)
+  }
+
+  updateHasFactorFlag = async (arg) => await this.financialRepository.updateHasFactorFlag(arg)
+
+  async chargeWallet({ id, amount }) {
+    let canWithdrawal = false
+    if (amount < 0) canWithdrawal = await this.financialRepository.canWithdrawal({ id, amount })
+    if (amount < 0 && !canWithdrawal) return false
+    else return await this.financialRepository.chargeWallet({ id, amount })
   }
 }
 module.exports = new FinancialService(FinancialRepository, UtilService)

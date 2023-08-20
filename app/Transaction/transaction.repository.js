@@ -1,12 +1,12 @@
-const SchoolTransaction = require('./transaction.model')
-const UtilService = require('../Utils/util.service')
-const mongoose = require('mongoose')
+const SchoolTransaction = require("./transaction.model")
+const UtilService = require("../Utils/util.service")
+const mongoose = require("mongoose")
 class TransactionRepository {
-  constructor (utilService) {
+  constructor(utilService) {
     this.utilService = utilService
   }
 
-  async createTransaction ({
+  async createTransaction({
     amount,
     transactionStatus,
     payerId,
@@ -33,8 +33,10 @@ class TransactionRepository {
     getway,
     isOnline,
     isDeposit,
-    subscribe
+    subscribe,
+    city,
   }) {
+    console.log({ repoooooooo: { city, getway } })
     return await SchoolTransaction({
       amount,
       transactionStatus,
@@ -47,6 +49,7 @@ class TransactionRepository {
       school,
       authority,
       driver,
+      city,
       invoiceID,
       student,
       service,
@@ -62,19 +65,24 @@ class TransactionRepository {
       getway,
       isOnline,
       isDeposit,
-      subscribe
+      subscribe,
     }).save()
   }
 
-  async findTransactionByAuthority (authority) {
+  async findTransactionByAuthority(authority) {
     console.log(authority)
     const result = await SchoolTransaction.findOne({ authority })
     return result
   }
 
-  async updateTransaction ({ authority, reason, status, isCallBack }) {
+  async updateTransaction({ authority, reason, status, isCallBack }) {
     await SchoolTransaction.findOneAndUpdate({ authority }, { reason, transactionStatus: status, isCallBack })
     return true
+  }
+
+  async findTransactions({ query, limit, page, populate }) {
+    console.log({ query: query.$and })
+    return await SchoolTransaction.paginate(query, { limit, page, lean: true, sort: { createdAt: -1 }, populate })
   }
 }
 

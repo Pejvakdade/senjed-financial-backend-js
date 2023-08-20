@@ -12,10 +12,11 @@ const Service = new mongoose.Schema(
     superAgent: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     absents: [{ type: mongoose.Schema.Types.ObjectId, ref: "Absent" }],
 
-    schoolFinancialGroup: { type: mongoose.Schema.Types.ObjectId, ref: "FinancialGroupSchool" },
+    financialGroupSchool: { type: mongoose.Schema.Types.ObjectId, ref: "FinancialGroupSchool" },
     city: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
     province: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
     price: { type: Number },
+    hasFactor: { type: Boolean },
     gender: { type: String },
     field: { type: String },
     grade: { type: String },

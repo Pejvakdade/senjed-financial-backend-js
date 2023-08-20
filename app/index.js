@@ -2,16 +2,16 @@ const express = require("express")
 const mongoose = require("mongoose")
 const app = express()
 const v1 = require("./Routes/v1")
-const morgan = require("morgan")
 //= ===== Documentation
 const cron = require("node-cron")
 
 //= ===== Documentation
-const cors = require("cors")
 const ErrorHandler = require("./Handler/ErrorHandler")
 const StatusCodes = require("./Values/StatusCodes")
 const factorService = require("../app/Factor/factor.service")
+const morgan = require("morgan")
 const json2xls = require("json2xls")
+const cors = require("cors")
 require("dotenv").config()
 app.use(morgan("dev"))
 app.use(cors())
@@ -19,7 +19,7 @@ app.use(express.json())
 app.use(json2xls.middleware)
 
 //! ExpiretionDate checker
-cron.schedule("*/15 * * * * *", async function () {
+cron.schedule("*/5 * * * * *", async function () {
   await factorService.checkExpireServices()
 })
 //! ExpiretionDate checker END

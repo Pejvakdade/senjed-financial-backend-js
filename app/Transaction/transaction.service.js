@@ -1,10 +1,10 @@
-const TransactionRepository = require('./transaction.repository')
+const TransactionRepository = require("./transaction.repository")
 class TransactionService {
-  constructor (transactionRepository) {
+  constructor(transactionRepository) {
     this.transactionRepository = transactionRepository
   }
 
-  async createTransaction ({
+  async createTransaction({
     amount,
     transactionStatus,
     payerId,
@@ -29,9 +29,10 @@ class TransactionService {
     description,
     getway,
     isOnline,
-    isDeposit
+    isDeposit,
+    city,
   }) {
-    return await this.transactionRepository.createTransaction({
+    console.log({
       amount,
       transactionStatus,
       payerId,
@@ -53,24 +54,55 @@ class TransactionService {
       count,
       factorsList,
       isForClient,
+      city,
       description,
       getway,
       isOnline,
-      isDeposit
+      isDeposit,
+    })
+    return await this.transactionRepository.createTransaction({
+      amount,
+      transactionStatus,
+      payerId,
+      payerType,
+      service,
+      receiverId,
+      receiverType,
+      parent,
+      secondParent,
+      school,
+      driver,
+      student,
+      city,
+      company,
+      superAgent,
+      authority,
+      schoolFinancialGroup,
+      reason,
+      target,
+      count,
+      factorsList,
+      isForClient,
+      description,
+      getway,
+      isOnline,
+      isDeposit,
     })
   }
 
-  async findTransactionByAuthority (authority) {
+  async findTransactionByAuthority(authority) {
     const result = await this.transactionRepository.findTransactionByAuthority(authority)
     return result
   }
 
-  async updateTransaction ({ authority, reason, status, isCallBack }) {
+  findTransactions = async (arg) => await this.transactionRepository.findTransactions(arg)
+
+  async updateTransaction({ authority, reason, status, isCallBack }) {
     await this.transactionRepository.updateTransaction({
       authority,
       reason,
       status,
-      isCallBack
+      isCallBack,
     })
     return true
   }

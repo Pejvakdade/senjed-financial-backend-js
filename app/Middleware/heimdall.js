@@ -16,7 +16,7 @@ module.exports = async (req, res, next) => {
     // const decodeToken = jwt.decode(token)
     response = await Api.heimdall({ token, type })
     req.phoneNumber = response.phoneNumber
-    req.userId = response.userId
+    req.userId = response._id
     req.token = token
     req.type = type
     next()
