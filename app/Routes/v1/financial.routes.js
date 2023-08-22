@@ -14,4 +14,6 @@ router.get("/pay-service-continues", use(FinancialController.payServiceSubscript
 router.post("/deposit", Auth, use(FinancialController.deposit.bind(FinancialController)))
 router.get("/deposit-continues", use(FinancialController.depositContinues.bind(FinancialController)))
 
+router.post("/pay-service-from-wallet", Auth, use(FinancialController.payServiceSubscriptionFromWallet.bind(FinancialController)))
+
 module.exports = router

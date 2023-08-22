@@ -14,7 +14,7 @@ class FactorService {
   }
 
   async createFactor({ price, serviceId, oldSubscriptionDate, newSubscriptionDate }) {
-    console.log({ price, serviceId, oldSubscriptionDate, newSubscriptionDate})
+    console.log({ price, serviceId, oldSubscriptionDate, newSubscriptionDate })
     const foundedService = await this.factorRepository.findService(serviceId)
     if (foundedService) {
       return await this.factorRepository.createFactor({
@@ -38,7 +38,8 @@ class FactorService {
     if (foundedExpireNowServices.length)
       for (const i in foundedExpireNowServices) {
         const foundedFinancialGroup = foundedExpireNowServices[i].financialGroupSchool
-
+        console.log({ foundedFinancialGroup })
+        if (!foundedFinancialGroup) continue
         const cycle = foundedFinancialGroup.subscriptionStudent.cycle
         let arrayOfDate = []
         let daysLeft = moment.duration(moment(foundedExpireNowServices[i].expire, "YYYY-MM-DD").diff(moment())).asDays() // tedad roz gozashte
@@ -117,7 +118,6 @@ class FactorService {
     console.log({ price, count: factorList.length })
     return { price, count: factorList.length, factorsList: factorList }
   }
-  
 
   async blockService({ serviceId, userType, reason, description, managerComment, blocker, blockerUserType, blockDate = Date.now() }) {
     const isBlockByReason = await this.factorRepository.isBlockByReason({ serviceId, reason })

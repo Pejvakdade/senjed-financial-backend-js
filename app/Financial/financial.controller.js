@@ -202,10 +202,10 @@ class FinancialController {
           reason,
           status,
         })
-        await Api.accountantChargeWalletById({
-          id: foundedTransaction.parent,
+
+        await this.FinancialService.chargeWallet({
+          id: foundedTransaction.payerId,
           amount: foundedTransaction.amount,
-          Authority: authority2,
         })
 
         //* PAY OTHER COMMISSION AND ADD SUBSCRIPTION AND SED MESSAGE
@@ -674,6 +674,79 @@ class FinancialController {
         }
       }
     }
+  }
+
+  async payServiceSubscriptionFromWallet(req, res) {
+    const { serviceId } = req.body
+    let { price, count, factorsList } = await factorService.factorPriceByServiceId(serviceId)
+    const foundedService = await this.FinancialService.findServiceById(serviceId)
+    const foundedUser = await this.FinancialService.findUserById(req.userId)
+    const foundedFinancialGroup = foundedService.financialGroupSchool
+    const shares = {
+      admin: foundedFinancialGroup.subscriptionStudent.share.admin,
+      superAgent: foundedFinancialGroup.subscriptionStudent.share.superAgent,
+      company: foundedFinancialGroup.subscriptionStudent.share.company,
+      driver: foundedFinancialGroup.subscriptionStudent.share.driver,
+      tax: foundedFinancialGroup.subscriptionStudent.share.tax,
+    }
+    let newFactorsList = []
+
+    for (const i in factorsList) {
+      newFactorsList.push(factorsList[i]._id)
+    }
+
+    if (newFactorsList.length <= 0 || price <= 0)
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_FACTOR_NOT_FOUND,
+        httpCode: 400,
+      })
+
+    if (req.type === "DRIVER") price = price - (price / 100) * shares.driver
+    if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver)
+    const authority = Math.floor(Math.random() * 10000000000)
+    const reason = "SERVICE_SUBSCRIPTION_FROM_WALLET"
+
+    if (foundedUser.balance < price)
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE,
+        httpCode: 400,
+      })
+
+    const createdTransaction = await this.TransactionService.createTransaction({
+      amount: price,
+      transactionStatus: "SUCCESS",
+      payerId: req.userId,
+      payerType: req.type,
+      parent: foundedService?.parent?._id,
+      secondParent: foundedService?.secondParent,
+      school: foundedService?.school,
+      driver: foundedService?.driver,
+      student: foundedService?.student?._id,
+      company: foundedService?.company,
+      superAgent: foundedService?.superAgent,
+      schoolFinancialGroup: foundedFinancialGroup._id,
+      service: serviceId,
+      reason,
+      count,
+      factorsList: newFactorsList,
+      isForClient: true,
+      authority,
+      description: `هزینه ${count} ماه ماهیانه سرویس مدارس از موجودی 0${foundedService?.parent?.phoneNumber} ${foundedService?.student?.firstName} ${foundedService?.student?.lastName} `,
+      city: String(foundedService?.city),
+      isOnline: false,
+      isDeposit: true,
+    })
+
+    await FinancialService.updateHasFactorFlag({ id: serviceId, hasFactor: false })
+
+    //* PAY OTHER COMMISSION AND ADD SUBSCRIPTION AND SED MESSAGE
+    await this.FinancialService.paySubscriptionSuccess({ foundedTransaction: createdTransaction })
+    return ResponseHandler.send({
+      res,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+      httpCode: 200,
+      result: createdTransaction,
+    })
   }
 }
 

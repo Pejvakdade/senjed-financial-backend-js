@@ -81,7 +81,6 @@ class FinancialService {
   }
 
   async paySubscriptionSuccess({ foundedTransaction }) {
-    console.log({ foundedTransaction })
     const foundedService = await this.financialRepository.findServiceById(foundedTransaction.service)
     const foundedFinancialGroup = foundedService.financialGroupSchool
     // const foundedFinancialGroup = await FinancialGroupService.getFinancialGroupById(foundedService?.schoolFinancialGroup)
