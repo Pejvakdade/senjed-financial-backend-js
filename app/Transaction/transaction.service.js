@@ -31,6 +31,7 @@ class TransactionService {
     isOnline,
     isDeposit,
     city,
+    withdrawalId,
   }) {
     console.log({
       amount,
@@ -59,6 +60,7 @@ class TransactionService {
       getway,
       isOnline,
       isDeposit,
+      withdrawalId,
     })
     return await this.transactionRepository.createTransaction({
       amount,
@@ -87,6 +89,7 @@ class TransactionService {
       getway,
       isOnline,
       isDeposit,
+      withdrawalId,
     })
   }
 

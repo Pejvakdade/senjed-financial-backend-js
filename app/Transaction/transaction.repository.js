@@ -35,6 +35,7 @@ class TransactionRepository {
     isDeposit,
     subscribe,
     city,
+    withdrawalId,
   }) {
     console.log({ repoooooooo: { city, getway } })
     return await SchoolTransaction({
@@ -66,6 +67,7 @@ class TransactionRepository {
       isOnline,
       isDeposit,
       subscribe,
+      withdrawalId,
     }).save()
   }
 
@@ -81,7 +83,6 @@ class TransactionRepository {
   }
 
   async findTransactions({ query, limit, page, populate }) {
-    console.log({ query: query.$and })
     return await SchoolTransaction.paginate(query, { limit, page, lean: true, sort: { createdAt: -1 }, populate })
   }
 }

@@ -355,6 +355,8 @@ class FinancialService {
 
   updateHasFactorFlag = async (arg) => await this.financialRepository.updateHasFactorFlag(arg)
 
+  findUserById = async (arg) => await this.financialRepository.findUserById(arg)
+
   async chargeWallet({ id, amount }) {
     let canWithdrawal = false
     if (amount < 0) canWithdrawal = await this.financialRepository.canWithdrawal({ id, amount })

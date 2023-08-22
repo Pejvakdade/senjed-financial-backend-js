@@ -14,6 +14,11 @@ class FinancialRepository {
     return result._id
   }
 
+  async findUserById(id) {
+    const result = await User.findById(id)
+    return result
+  }
+
   async findBankSchoolId() {
     const result = await User.findOne({ userTypes: { $in: ["BANK_SCHOOL"] } })
     return result._id

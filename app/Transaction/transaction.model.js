@@ -6,7 +6,7 @@ const schoolTransactionModel = new mongoose.Schema(
   {
     reason: {
       type: String,
-      enum: ["SERVICE_SUBSCRIPTION", "SERVICE_SUBSCRIPTION_COMMISSION"],
+      enum: ["SERVICE_SUBSCRIPTION", "SERVICE_SUBSCRIPTION_COMMISSION", "WITHDRAWAL", "DEPOSIT"],
     },
     payerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     payerType: {
@@ -38,7 +38,10 @@ const schoolTransactionModel = new mongoose.Schema(
     count: { type: Number },
     factorsList: [{ type: mongoose.Schema.Types.ObjectId, ref: "Factor" }],
     authority: { type: String },
-    target: { type: String, enum: ["REDIRECT_TO_PAY_SUBSCRIPTION_DASHBOARD", "REDIRECT_TO_PAY_SUBSCRIPTION_PARENT" , "REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER"] },
+    target: {
+      type: String,
+      enum: ["REDIRECT_TO_PAY_SUBSCRIPTION_DASHBOARD", "REDIRECT_TO_PAY_SUBSCRIPTION_PARENT", "REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER"],
+    },
     getway: { type: String, enum: ["saderat", "zarinpal"] },
     description: { type: String },
     transactionStatus: { type: String, enum: ["SUCCESS", "FAILED", "PENDING"], default: "SUCCESS" },

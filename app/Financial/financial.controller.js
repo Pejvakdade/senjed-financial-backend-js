@@ -34,7 +34,7 @@ class FinancialController {
       driver: foundedFinancialGroup.subscriptionStudent.share.driver,
       tax: foundedFinancialGroup.subscriptionStudent.share.tax,
     }
-    console.log({typeeeeeeeeeee:req.type})
+    console.log({ typeeeeeeeeeee: req.type })
     let { price, count, factorsList } = await factorService.factorPriceByServiceId(serviceId)
     if (req.type === "DRIVER") price = price - (price / 100) * shares.driver
     if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver)
@@ -70,7 +70,7 @@ class FinancialController {
     const authority = Math.floor(Math.random() * 10000000000)
     const description = `هزینه ${count} ماه ماهیانه سرویس مدارس ${foundedService?.parent?.phoneNumber} ${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`
     const reason = "SERVICE_SUBSCRIPTION"
-    const targetGetway = "REDIRECT_TO_PAY_SERVICE_SUBSCRIPTION_CONTINUE"
+    // const targetGetway = "REDIRECT_TO_PAY_SERVICE_SUBSCRIPTION_CONTINUE"
     let payLink
 
     const createdTransaction = await this.TransactionService.createTransaction({
@@ -104,14 +104,14 @@ class FinancialController {
       console.log({
         terminalID: Constant.SADERAT_TERMINAL_ID,
         Amount: Number(price) * 10,
-        callbackURL: `${process.env.BASE_URL}/api/v1/financial/pay-service-continues?reason=${reason}&target=${targetGetway}&getway=saderat&transaction=${createdTransaction._id}&authority2=${authority}`,
+        callbackURL: `${process.env.BASE_URL}/api/v1/financial/pay-service-continues?reason=${reason}&target=${target}&getway=saderat&transaction=${createdTransaction._id}&authority2=${authority}`,
         invoiceID: authority,
         Payload: description,
       })
       const foundedToken = await Api.getTokenSaderat({
         terminalID: Constant.SADERAT_TERMINAL_ID,
         Amount: Number(price) * 10,
-        callbackURL: `${process.env.BASE_URL}/api/v1/financial/financial/pay-service-continues?reason=${reason}&target=${targetGetway}&getway=saderat&transaction=${createdTransaction._id}&authority2=${authority}`,
+        callbackURL: `${process.env.BASE_URL}/api/v1/financial/financial/pay-service-continues?reason=${reason}&target=${target}&getway=saderat&transaction=${createdTransaction._id}&authority2=${authority}`,
         invoiceID: authority,
         Payload: description,
       })
@@ -372,6 +372,305 @@ class FinancialController {
                 httpCode: 404,
               })
           }
+        }
+      }
+    }
+  }
+
+  async deposit(req, res) {
+    const { amount, getway, target } = req.body
+    const authority = Math.floor(Math.random() * 10000000000)
+    const reason = "DEPOSIT"
+    const targetGetway = "REDIRECT_TO_PAY_SERVICE_SUBSCRIPTION_CONTINUE"
+    let payLink
+    const foundedUser = await this.FinancialService.findUserById(req.userId)
+    const description = `شارژ حساب 0${req.phoneNumber} ${foundedUser?.firstName} ${foundedUser?.lastName}`
+    let parent, driver, company, superAgent, province, city
+    switch (req.type) {
+      case "PARENT":
+        parent = req.userId
+        province = foundedUser?.parentInformation?.province
+        city = foundedUser?.parentInformation?.city
+        break
+
+      case "DRIVER":
+        driver = req?.userId
+        company = foundedUser?.schoolDriverInformation?.company
+        superAgent = foundedUser?.schoolDriverInformation?.superAgent
+        province = foundedUser?.schoolDriverInformation?.province
+        city = foundedUser?.schoolDriverInformation?.city
+        break
+
+      case "COMPANY":
+        company = req?.userId
+        superAgent = foundedUser?.companyInformation?.superAgent
+        province = foundedUser?.companyInformation?.province
+        city = foundedUser?.companyInformation?.city
+        break
+
+      case "SUPER_AGENT_SCHOOL":
+        superAgent = req?.userId
+        province = foundedUser?.superAgentSchoolInformation?.province
+        city = foundedUser?.superAgentSchoolInformation?.city
+        break
+    }
+
+    const createdTransaction = await this.TransactionService.createTransaction({
+      amount,
+      transactionStatus: "PENDING",
+      payerId: req.userId,
+      payerType: req.type,
+      parent,
+      driver,
+      company,
+      superAgent,
+      province,
+      city,
+      reason,
+      target,
+      isForClient: true,
+      authority,
+      description,
+      getway,
+      isOnline: true,
+      isDeposit: true,
+    })
+
+    if (getway === "saderat") {
+      const foundedToken = await Api.getTokenSaderat({
+        terminalID: Constant.SADERAT_TERMINAL_ID,
+        Amount: Number(amount) * 10,
+        callbackURL: `${process.env.BASE_URL}/api/v1/financial/financial/deposit-continues?reason=${reason}&target=${targetGetway}&getway=saderat&transaction=${createdTransaction._id}&authority2=${authority}`,
+        invoiceID: authority,
+        Payload: description,
+      })
+      console.log({ foundedToken })
+      if (foundedToken.Status !== 0) {
+        throw new ErrorHandler({
+          statusCode: StatusCodes.ERROR_SADERAT_TOKEN,
+          httpCode: 400,
+        })
+      }
+
+      await Redis.saveEx(authority, {}, 660)
+
+      payLink = `https://certificateir.ir/api/v1/financial/payment/redirect-saderat?token=${foundedToken.Accesstoken}`
+    }
+
+    if (getway === "zarinpal") {
+      const foundedToken = await this.ZarinpalService.request({
+        amount: Number(amount) * 10,
+        callback_url: `${process.env.BASE_URL}/api/v1/financial/financial/deposit-continues?reason=${reason}&target=${targetGetway}&getway=zarinpal&transaction=${createdTransaction._id}&authority2=${authority}`,
+        description,
+        trackingCode: authority,
+      })
+
+      console.log({ foundedToken })
+      if (!foundedToken) {
+        throw new ErrorHandler({
+          statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN,
+          httpCode: 400,
+        })
+      }
+
+      await Redis.saveEx(authority, {}, 660)
+
+      payLink = `https://www.zarinpal.com/pg/StartPay/${foundedToken}`
+    }
+
+    return ResponseHandler.send({
+      res,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+      httpCode: 200,
+      result: { payLink },
+    })
+  }
+
+  async depositContinues(req, res) {
+    const { reason, target, getway, respcode, transaction, authority2, authority, digitalreceipt, Authority, Status } = req.query
+    let foundedTransaction
+    let status
+
+    //* ================== check frist time to call =====================
+    if (await Redis.get(authority2)) {
+      await Redis.del(authority2)
+      foundedTransaction = await this.TransactionService.findTransactionByAuthority(authority2)
+
+      //* ================== saderat getway ===============================
+      if (getway === "saderat") {
+        const adviceSaderat = await Api.postSaderatAdvice({
+          digitalreceipt,
+          Tid: Constant.SADERAT_TERMINAL_ID,
+        })
+        console.log({ adviceSaderat })
+        if (adviceSaderat.Status === "Duplicate" || adviceSaderat.Status === "Ok") status = "SUCCESS"
+        else status = "FAILED"
+      } else if (getway === "zarinpal") {
+        if (Status === "OK") status = "SUCCESS"
+        else status = "FAILED"
+      }
+
+      if (status === "SUCCESS") {
+        await this.TransactionService.updateTransaction({
+          authority: authority2,
+          status,
+        })
+        await Api.accountantChargeWalletById({
+          id: foundedTransaction.payerId,
+          amount: foundedTransaction.amount,
+          Authority: authority2,
+        })
+
+        //* PAY OTHER COMMISSION AND ADD SUBSCRIPTION AND SED MESSAGE
+        switch (foundedTransaction.target) {
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_DASHBOARD":
+            return res.redirect(
+              appRouting.REDIRECT_DEPOSIT_SUCCESS_TO_DASHBOARD({
+                serviceId: foundedTransaction?.service,
+                payerId: foundedTransaction?.payerId,
+                amount: foundedTransaction?.amount,
+                target: foundedTransaction?.target,
+                authority: authority2,
+              })
+            )
+            break
+
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_PARENT":
+            return res.redirect(
+              appRouting.REDIRECT_TO_PAY_SUBSCRIPTION_PARENT_SUCCESS({
+                authority: authority2,
+              })
+            )
+            break
+
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER":
+            return res.redirect(
+              appRouting.REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER_SUCCESS({
+                authority: authority2,
+              })
+            )
+            break
+
+          default:
+            throw new ErrorHandler({
+              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
+              httpCode: 404,
+            })
+        }
+      } else {
+        await this.TransactionService.updateTransaction({
+          authority: authority2,
+          reason,
+          status,
+        })
+        switch (foundedTransaction.target) {
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_DASHBOARD":
+            return res.redirect(
+              appRouting.REDIRECT_DEPOSIT_FAILED_TO_DASHBOARD({
+                serviceId: foundedTransaction?.service,
+                payerId: foundedTransaction?.payerId,
+                amount: foundedTransaction?.amount,
+                target: foundedTransaction?.target,
+                authority: authority2,
+              })
+            )
+            break
+
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_PARENT":
+            return res.redirect(
+              appRouting.REDIRECT_TO_PAY_SUBSCRIPTION_PARENT_FAILED({
+                authority: authority2,
+              })
+            )
+            break
+
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER":
+            return res.redirect(
+              appRouting.REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER_FAILED({
+                authority: authority2,
+              })
+            )
+            break
+
+          default:
+            throw new ErrorHandler({
+              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
+              httpCode: 404,
+            })
+        }
+      }
+    } else {
+      foundedTransaction = await this.TransactionService.findTransactionByAuthority(authority2)
+
+      if (status === "SUCCESS") {
+        switch (foundedTransaction.target) {
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_DASHBOARD":
+            return res.redirect(
+              appRouting.REDIRECT_DEPOSIT_SUCCESS_TO_DASHBOARD({
+                serviceId: foundedTransaction?.service,
+                payerId: foundedTransaction?.payerId,
+                amount: foundedTransaction.amount,
+                target: foundedTransaction.target,
+                authority: authority2,
+              })
+            )
+            break
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_PARENT":
+            return res.redirect(
+              appRouting.REDIRECT_TO_PAY_SUBSCRIPTION_PARENT_SUCCESS({
+                authority: authority2,
+              })
+            )
+            break
+
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER":
+            return res.redirect(
+              appRouting.REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER_SUCCESS({
+                authority: authority2,
+              })
+            )
+            break
+
+          default:
+            throw new ErrorHandler({
+              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
+              httpCode: 404,
+            })
+        }
+      } else {
+        switch (foundedTransaction.target) {
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_DASHBOARD":
+            return res.redirect(
+              appRouting.REDIRECT_DEPOSIT_FAILED_TO_DASHBOARD({
+                serviceId: foundedTransaction.service,
+                payerId: foundedTransaction.payerId,
+                amount: foundedTransaction.amount,
+                target: foundedTransaction.target,
+                authority: authority2,
+              })
+            )
+            break
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_PARENT":
+            return res.redirect(
+              appRouting.REDIRECT_TO_PAY_SUBSCRIPTION_PARENT_FAILED({
+                authority: authority2,
+              })
+            )
+            break
+
+          case "REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER":
+            return res.redirect(
+              appRouting.REDIRECT_TO_PAY_SUBSCRIPTION_DRIVER_FAILED({
+                authority: authority2,
+              })
+            )
+            break
+
+          default:
+            throw new ErrorHandler({
+              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
+              httpCode: 404,
+            })
         }
       }
     }
