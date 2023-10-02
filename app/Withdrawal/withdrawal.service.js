@@ -9,6 +9,8 @@ class WithdrawalService {
 
   checkWallet = async (arg) => await this.WithdrawalRepository.checkWallet(arg)
 
+  checkProfitWallet = async (arg) => await this.WithdrawalRepository.checkProfitWallet(arg)
+
   findUserById = async (arg) => await this.WithdrawalRepository.findUserById(arg)
 
   findWithrawalById = async (arg) => await this.WithdrawalRepository.findWithrawalById(arg)
@@ -18,6 +20,8 @@ class WithdrawalService {
   createWithdrawal = async (arg) => await this.WithdrawalRepository.createWithdrawal(arg)
 
   changeWallet = async (arg) => await this.WithdrawalRepository.changeWallet(arg)
+
+  changeProfitWallet = async (arg) => await this.WithdrawalRepository.changeProfitWallet(arg)
 
   find = async (arg) => await this.WithdrawalRepository.find(arg)
 }

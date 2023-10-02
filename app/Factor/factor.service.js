@@ -1,5 +1,6 @@
 const FactorRepository = require("./factor.repository")
 const UtilService = require("../Utils/util.service")
+const BlockService = require("../Block/block.service")
 const FinancialGroupService = require("../FinancialGroup/financialGroup.service")
 const FinancialRepository = require("../Financial/financial.repository")
 const Api = require("../Api")
@@ -8,16 +9,16 @@ const { StatusCodes } = require("../Values")
 const moment = require("moment")
 
 class FactorService {
-  constructor(factorRepository, utilService) {
-    this.factorRepository = factorRepository
-    this.utilService = utilService
+  constructor() {
+    this.FactorRepository = FactorRepository
+    this.UtilService = UtilService
+    this.BlockService = BlockService
   }
 
   async createFactor({ price, serviceId, oldSubscriptionDate, newSubscriptionDate }) {
-    console.log({ price, serviceId, oldSubscriptionDate, newSubscriptionDate })
-    const foundedService = await this.factorRepository.findService(serviceId)
+    const foundedService = await this.FactorRepository.findService(serviceId)
     if (foundedService) {
-      return await this.factorRepository.createFactor({
+      return await this.FactorRepository.createFactor({
         price,
         serviceId,
         parent: foundedService.parent,
@@ -32,15 +33,14 @@ class FactorService {
   }
 
   async checkExpireServices() {
-    const foundedExpireServices = await this.factorRepository.foundedExpireServices() // lte +8 daye to expire
-    const foundedExpireNowServices = await this.factorRepository.foundedExpireNowServices() // now expire
+    const foundedExpireServices = await this.FactorRepository.foundedExpireServices() // lte +8 daye to expire
+    const foundedExpireNowServices = await this.FactorRepository.foundedExpireNowServices() // now expire
     //!for now expire
     if (foundedExpireNowServices.length)
       for (const i in foundedExpireNowServices) {
         const foundedFinancialGroup = foundedExpireNowServices[i].financialGroupSchool
-        console.log({ foundedFinancialGroup })
         if (!foundedFinancialGroup) continue
-        const cycle = foundedFinancialGroup.subscriptionStudent.cycle
+        const cycle = foundedExpireNowServices[i].cycle
         let arrayOfDate = []
         let daysLeft = moment.duration(moment(foundedExpireNowServices[i].expire, "YYYY-MM-DD").diff(moment())).asDays() // tedad roz gozashte
         if (daysLeft < 0) {
@@ -51,11 +51,12 @@ class FactorService {
           for (let j = 0; j < countOfFacktor; j++) {
             const tempOldDate = new Date(oldDate)
             const newOldDate = new Date(tempOldDate.setDate(tempOldDate.getDate() + cycle))
-            const hasFactor = await this.factorRepository.hasFactor({
+            const hasFactor = await this.FactorRepository.hasFactor({
               serviceId: foundedExpireNowServices[i]._id,
               oldSubscriptionDate: oldDate,
             })
 
+            console.log({ hasFactor })
             if (hasFactor === false) {
               await this.createFactor({
                 price: foundedExpireNowServices[i].price,
@@ -64,22 +65,25 @@ class FactorService {
                 newSubscriptionDate: newOldDate,
               })
             }
+            await this.BlockService.subscription(foundedExpireNowServices[i]._id)
             oldDate = newOldDate
+            console.log("injaaaaaaaaaaa")
           }
-          console.log({ serviceId: foundedExpireNowServices[i]._id })
+          console.log("injaaaaaaaaaaa222222")
+
           await FinancialRepository.updateHasFactorFlag({ id: foundedExpireNowServices[i]._id, hasFactor: true })
         }
 
         //!for have lte 8 day to expire
       }
     for (const i in foundedExpireServices) {
-      const hasFactor = await this.factorRepository.hasFactor({
+      const hasFactor = await this.FactorRepository.hasFactor({
         serviceId: foundedExpireServices[i]._id,
         oldSubscriptionDate: foundedExpireServices[i].expire,
       })
       const oldSubscriptionDate = new Date(foundedExpireServices[i].expire)
       const foundedFinancialGroup = foundedExpireServices[i].financialGroupSchool
-      const cycle = foundedFinancialGroup.subscriptionStudent.cycle
+      const cycle = foundedExpireServices[i].cycle
 
       if (hasFactor === false) {
         const tempExpireDate = new Date(foundedExpireServices[i].expire)
@@ -92,7 +96,6 @@ class FactorService {
           newSubscriptionDate,
         })
       }
-      console.log({ serviceId: foundedExpireServices[i]._id })
       await FinancialRepository.updateHasFactorFlag({ id: foundedExpireServices[i]._id, hasFactor: true })
     }
     for (const j in foundedExpireNowServices) {
@@ -101,11 +104,11 @@ class FactorService {
   }
 
   async factorListByServiceId(serviceId) {
-    return await this.factorRepository.factorListByServiceId(serviceId)
+    return await this.FactorRepository.factorListByServiceId(serviceId)
   }
 
   async factorPriceByServiceId(serviceId) {
-    const factorList = await this.factorRepository.factorListByServiceId(serviceId)
+    const factorList = await this.FactorRepository.factorListByServiceId(serviceId)
     console.log({ factorList })
     const factors = []
     for (const i in factorList) {
@@ -115,23 +118,22 @@ class FactorService {
     for (const i in factorList) {
       price = factorList[i].price + price
     }
-    console.log({ price, count: factorList.length })
     return { price, count: factorList.length, factorsList: factorList }
   }
 
   async blockService({ serviceId, userType, reason, description, managerComment, blocker, blockerUserType, blockDate = Date.now() }) {
-    const isBlockByReason = await this.factorRepository.isBlockByReason({ serviceId, reason })
+    const isBlockByReason = await this.FactorRepository.isBlockByReason({ serviceId, reason })
     if (!isBlockByReason) {
-      const foundedBlock = await this.factorRepository.findServiceBlocks(serviceId)
+      const foundedBlock = await this.FactorRepository.findServiceBlocks(serviceId)
       console.log({ reason, description, blocker, blockerUserType, blockDate, userType, managerComment })
       foundedBlock.push({ reason, description, blocker, blockerUserType, blockDate, userType, managerComment })
-      return await this.factorRepository.blockService({
+      return await this.FactorRepository.blockService({
         serviceId,
         foundedBlock,
       })
     }
   }
 
-  changeFactorStatus = async (arg) => await this.factorRepository.changeFactorStatus(arg)
+  changeFactorStatus = async (arg) => await this.FactorRepository.changeFactorStatus(arg)
 }
-module.exports = new FactorService(FactorRepository, UtilService)
+module.exports = new FactorService()

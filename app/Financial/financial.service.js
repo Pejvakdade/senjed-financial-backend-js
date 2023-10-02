@@ -15,27 +15,8 @@ class FinancialService {
     this.utilService = utilService
   }
 
-  async internalMoneyTransfer({
-    withdrawalId,
-    reason,
-    payerId,
-    payerType,
-    receiverId,
-    receiverType,
-    isForClient,
-    amount,
-    description,
-    isOnline = false,
-    subscribe,
-  }) {
-    console.log({ receiverType })
-    // reason: "SERVICE_SUBSCRIPTION_COMMISSION",
-    // payerId: foundedTransaction.payerId,
-    // payerType: "PASSENGER",
-    // receiverId: foundedCommissionManagerSchoolId,
-    // receiverType: "COMMISSION_MANAGER_SCHOOL",
-    // amount: foundedTransaction.amount,
-    // subscribe: foundedTransaction._id,
+  async internalMoneyTransfer({ withdrawalId, reason, payerId, payerType, receiverId, receiverType, isForClient, amount, description, isOnline = false, subscribe }) {
+    console.log({ withdrawalId, reason, payerId, payerType, receiverId, receiverType, isForClient, amount, description, isOnline, subscribe })
     const checkWalletAmount = await this.financialRepository.checkWallet({
       id: payerId,
       amount,
@@ -62,6 +43,7 @@ class FinancialService {
       withdrawalId,
       subscribe,
     })
+
     await this.chargeWallet({ id: payerId, amount: -amount })
     await TransactionRepository.createTransaction({
       reason,
@@ -77,24 +59,19 @@ class FinancialService {
       withdrawalId,
       subscribe,
     })
-    await this.chargeWallet({ id: receiverId, amount })
+    await this.chargeWallet({ id: receiverId, amount, type: receiverType })
   }
 
   async paySubscriptionSuccess({ foundedTransaction }) {
     const foundedService = await this.financialRepository.findServiceById(foundedTransaction.service)
     const foundedFinancialGroup = foundedService.financialGroupSchool
-    // const foundedFinancialGroup = await FinancialGroupService.getFinancialGroupById(foundedService?.schoolFinancialGroup)
-
     //* pay others commission And  send sms for payer:
     await this.transferSubscriptionShare({ foundedTransaction, foundedService, foundedFinancialGroup })
-
     //* add subscription days
     await this.financialRepository.addSubscriptionDay({
       serviceId: foundedService._id,
-      days: Number(foundedFinancialGroup.subscriptionStudent.cycle) * Number(foundedTransaction.count),
+      days: Number(foundedService.cycle) * Number(foundedTransaction.count),
     })
-    console.log("jjjjjjjsjadjajsjkdjasjkdhaskjdhjkahsjkdhajksdkahdjs")
-
     //* unblock Service
     await this.financialRepository.deleteBlockByReasonAndUserType({
       serviceId: String(foundedService._id),
@@ -299,10 +276,7 @@ class FinancialService {
           payerType: "COMPANY",
           receiverId: foundedCommissionManagerSchoolId,
           receiverType: "COMMISSION_MANAGER_SCHOOL",
-          amount:
-            foundedTransaction.amount -
-            (foundedTransaction.amount * shares.driver) / 100 -
-            (foundedTransaction.amount * shares.company) / 100,
+          amount: foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100 - (foundedTransaction.amount * shares.company) / 100,
           subscribe: foundedTransaction._id,
         })
 
@@ -356,11 +330,16 @@ class FinancialService {
 
   findUserById = async (arg) => await this.financialRepository.findUserById(arg)
 
-  async chargeWallet({ id, amount }) {
+  checkProfitWallet = async (arg) => await this.financialRepository.checkProfitWallet(arg)
+  
+  transferToMainBalnceForCompany = async (arg) => await this.financialRepository.transferToMainBalnceForCompany(arg)
+
+  async chargeWallet({ id, amount, type }) {
+    console.log({ id, amount, type })
     let canWithdrawal = false
     if (amount < 0) canWithdrawal = await this.financialRepository.canWithdrawal({ id, amount })
     if (amount < 0 && !canWithdrawal) return false
-    else return await this.financialRepository.chargeWallet({ id, amount })
+    else return type === "COMPANY" ? await this.financialRepository.chargeWalletCompany({ id, amount }) : await this.financialRepository.chargeWallet({ id, amount })
   }
 }
 module.exports = new FinancialService(FinancialRepository, UtilService)

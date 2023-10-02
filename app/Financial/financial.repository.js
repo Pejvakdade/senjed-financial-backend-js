@@ -6,7 +6,7 @@ const moment = require("moment")
 class FinancialRepository {
   constructor() {}
   findServiceById = async (serviceId) => {
-    return await Service.findById(serviceId).populate("student parent financialGroupSchool")
+    return await Service.findById(serviceId).populate("student parent financialGroupSchool company").lean()
   }
 
   async findAdminId() {
@@ -78,14 +78,29 @@ class FinancialRepository {
     return true
   }
 
+  async chargeWalletCompany({ id, amount }) {
+    await User.findByIdAndUpdate(id, { $inc: { "companyInformation.profitBalance": amount } }, { new: true })
+    return true
+  }
+
   async canWithdrawal({ id, amount }) {
     const user = await User.findById(id)
     return user.balance >= Math.abs(amount)
   }
 
   async updateHasFactorFlag({ id, hasFactor }) {
+    console.log({ id, hasFactor, updateHasFactorFlag: true })
     const result = await Service.findByIdAndUpdate(id, { hasFactor })
     return result
+  }
+
+  async checkProfitWallet({ id, amount }) {
+    const user = await User.findById(id)
+    return user?.companyInformation?.profitBalance >= amount
+  }
+  async transferToMainBalnceForCompany({ id, amount }) {
+    await User.findByIdAndUpdate(id, { $inc: { "companyInformation.profitBalance": -amount } }, { new: true })
+    return await User.findByIdAndUpdate(id, { $inc: { balance: amount } }, { new: true })
   }
 }
 module.exports = new FinancialRepository()

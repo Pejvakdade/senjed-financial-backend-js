@@ -77,6 +77,65 @@ class WithdrawalController {
     })
   }
 
+  async requestFromProfit(req, res) {
+    console.log("taha")
+    let { amount, shabaId, bankId, bankName } = req.body
+    amount = Number(amount)
+    console.log({ amount, shabaId, bankId, bankName })
+    const foundedUser = await this.WithdrawalService.findUserById(req.userId)
+    const isBalanceEnough = await this.WithdrawalService.checkProfitWallet({ id: req.userId, amount })
+    console.log({ isBalanceEnough })
+    if (isBalanceEnough == false)
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE,
+        httpCode: 400,
+      })
+    if (amount < Number(process.env.MIN_AMOUNT_WITHDRAWAL))
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_MIN_WITHDRAWAL,
+        httpCode: 400,
+      })
+    else if (amount > Number(process.env.MAX_AMOUNT_WITHDRAWAL)) {
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_MORE_THAN_MAX_WITHDRAWAL,
+        httpCode: 400,
+      })
+    }
+    await this.WithdrawalService.changeProfitWallet({ id: req.userId, amount: -amount })
+    let superAgent, company, city, province
+
+    if (req.type === "COMPANY") {
+      city = foundedUser?.companyInformation?.city[0]
+      province = foundedUser?.companyInformation?.province
+      superAgent = foundedUser?.companyInformation.superAgent
+      company = req.userId
+    }
+
+    const result = await this.WithdrawalService.createWithdrawal({
+      amount,
+      userId: req.userId,
+      type: req.type,
+      phoneNumber: req.phoneNumber,
+      superAgent,
+      company,
+      city,
+      province,
+      shabaId,
+      bankName,
+      bankId,
+      trackingCode: Math.floor(Math.random() * 10000000000),
+      description: "",
+      from: "PROFIT",
+    })
+
+    return ResponseHandler.send({
+      res,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+      httpCode: 200,
+      result,
+    })
+  }
+
   async acc(req, res) {
     let result
     if (req.type === "ADMIN") {
@@ -129,7 +188,11 @@ class WithdrawalController {
         })
       result = await this.WithdrawalService.updateWithrawal({ withdrawalId, status: "REJECT", description })
       console.log({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
-      await this.WithdrawalService.changeWallet({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
+      if (foundedWithrawal?.from) {
+        if (foundedWithrawal?.from === "PROFIT") await this.WithdrawalService.changeProfitWallet({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
+        else await this.WithdrawalService.changeWallet({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
+      } else await this.WithdrawalService.changeWallet({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
+
       //todo send sms
     } else
       throw new ErrorHandler({
@@ -145,8 +208,7 @@ class WithdrawalController {
   }
 
   async find(req, res) {
-    let { sort, page, limit, populate, userId, type, superAgent, company, driver, city, service, province, amount, status, search } =
-      req.body
+    let { sort, page, limit, populate, userId, type, superAgent, company, driver, city, service, province, amount, status, search } = req.body
 
     if (sort) {
       switch (sort) {

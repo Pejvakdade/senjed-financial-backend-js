@@ -20,7 +20,7 @@ class FactorRepository {
       oldSubscriptionDate,
       newSubscriptionDate,
     }).save()
-    console.log({result})
+    console.log({ result })
     return result
   }
 
@@ -50,7 +50,7 @@ class FactorRepository {
   }
 
   async hasFactor({ serviceId, oldSubscriptionDate }) {
-    const hasFactorResult = await Factor.findOne({ serviceId, oldSubscriptionDate ,status:"UN_PAID"}).lean()
+    const hasFactorResult = await Factor.findOne({ serviceId, oldSubscriptionDate, status: "UN_PAID" }).lean()
     return !!hasFactorResult
   }
 
@@ -63,11 +63,9 @@ class FactorRepository {
   }
 
   async factorListByServiceId(serviceId) {
-    console.log({ serviceId })
     const result = await Factor.find({ serviceId, status: "UN_PAID" }).lean()
     return result
   }
-  
 
   async findServiceBlocks(serviceId) {
     const result = await Service.findById(serviceId)

@@ -1,8 +1,8 @@
 const mongoose = require("mongoose")
 const mongoosePaginate = require("mongoose-paginate-v2")
-
 const Service = new mongoose.Schema(
   {
+    cycle: { type: Number, default: 30 },
     parent: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     secondParent: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     school: { type: mongoose.Schema.Types.ObjectId, ref: "School" },
@@ -10,16 +10,16 @@ const Service = new mongoose.Schema(
     student: { type: mongoose.Schema.Types.ObjectId, ref: "Student" },
     company: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     superAgent: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    municipality: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     absents: [{ type: mongoose.Schema.Types.ObjectId, ref: "Absent" }],
 
     financialGroupSchool: { type: mongoose.Schema.Types.ObjectId, ref: "FinancialGroupSchool" },
     city: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
     province: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
     price: { type: Number },
-    hasFactor: { type: Boolean },
+    hasFactor: { type: Boolean, default: false },
     gender: { type: String },
     field: { type: String },
-    grade: { type: String },
     approve: {
       superAgentApprove: {
         isApprroved: { type: Boolean, default: false },
@@ -57,17 +57,6 @@ const Service = new mongoose.Schema(
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     expire: { type: Date },
-    blocks: [
-      {
-        reason: { type: Number },
-        description: { type: String },
-        blocker: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-        blockerUserType: { type: String },
-        blockDate: { type: Date },
-        userType: { type: String },
-        managerComment: { type: String },
-      },
-    ],
   },
   { timestamps: true, versionKey: false }
 )

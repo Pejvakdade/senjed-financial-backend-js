@@ -5,6 +5,7 @@ const ProvinceSchool = require("../models/province.model")
 const WithdrawalModel = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+    from: { type: String, enum: ["BALANCE", "PROFIT"], default: "BALANCE" },
 
     phoneNumber: { type: String },
     type: {

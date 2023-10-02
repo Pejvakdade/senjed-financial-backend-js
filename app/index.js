@@ -19,7 +19,7 @@ app.use(express.json())
 app.use(json2xls.middleware)
 
 //! ExpiretionDate checker
-cron.schedule("*/5 * * * * *", async function () {
+cron.schedule("*/50 * * * * *", async function () {
   await factorService.checkExpireServices()
 })
 //! ExpiretionDate checker END

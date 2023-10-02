@@ -1,10 +1,10 @@
-const jwt = require('jsonwebtoken')
-const statusCodes = require('../Values/StatusCodes')
-const Api = require('../Api')
+const jwt = require("jsonwebtoken")
+const statusCodes = require("../Values/StatusCodes")
+const Api = require("../Api")
 
 module.exports = async (req, res, next) => {
   try {
-    const token = req.headers.authorization.split(' ')[1]
+    const token = req.headers.authorization.split(" ")[1]
     const type = req.headers.type
     const decodeToken = jwt.decode(token)
     const foundedUser = await Api.getDriverById(decodeToken.id)

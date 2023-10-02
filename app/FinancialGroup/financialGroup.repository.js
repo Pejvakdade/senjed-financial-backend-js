@@ -59,11 +59,7 @@ class FinancialGroupRepository {
   }
 
   async updateFinancialGroup({ id, type, agentSubscription, name, subscriptionStudent, subscriptionAgent }) {
-    const result = await FinancialGroup.findByIdAndUpdate(
-      id,
-      { type, agentSubscription, name, subscriptionStudent, subscriptionAgent },
-      { new: true }
-    )
+    const result = await FinancialGroup.findByIdAndUpdate(id, { type, agentSubscription, name, subscriptionStudent, subscriptionAgent }, { new: true })
     return result
   }
 

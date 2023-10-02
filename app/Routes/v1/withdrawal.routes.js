@@ -2,12 +2,15 @@ const express = require("express")
 const { WithdrawalController } = require("../../Withdrawal")
 
 const router = express.Router()
-const Heimdall = require("../../Middleware/heimdall")
+const { Heimdall, Auth } = require("../../Middleware")
+
 const use = (fn) => (req, res, next) => {
   Promise.resolve(fn(req, res, next)).catch(next)
 }
 
 router.post("/request", Heimdall, use(WithdrawalController.request.bind(WithdrawalController)))
+router.post("/company/request-from-profit", Auth, use(WithdrawalController.requestFromProfit.bind(WithdrawalController)))
+
 router.put("/accept", Heimdall, use(WithdrawalController.acc.bind(WithdrawalController)))
 router.put("/reject", Heimdall, use(WithdrawalController.reject.bind(WithdrawalController)))
 router.post("/find", Heimdall, use(WithdrawalController.find.bind(WithdrawalController)))

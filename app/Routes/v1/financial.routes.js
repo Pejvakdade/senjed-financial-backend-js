@@ -15,5 +15,6 @@ router.post("/deposit", Auth, use(FinancialController.deposit.bind(FinancialCont
 router.get("/deposit-continues", use(FinancialController.depositContinues.bind(FinancialController)))
 
 router.post("/pay-service-from-wallet", Auth, use(FinancialController.payServiceSubscriptionFromWallet.bind(FinancialController)))
+router.post("/company/transfer-to-main-balance", Auth, use(FinancialController.transferToMainBalnceForCompany.bind(FinancialController)))
 
 module.exports = router

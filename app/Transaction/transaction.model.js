@@ -6,7 +6,7 @@ const schoolTransactionModel = new mongoose.Schema(
   {
     reason: {
       type: String,
-      enum: ["SERVICE_SUBSCRIPTION", "SERVICE_SUBSCRIPTION_COMMISSION", "WITHDRAWAL", "DEPOSIT", "SERVICE_SUBSCRIPTION_FROM_WALLET"],
+      enum: ["SERVICE_SUBSCRIPTION", "SERVICE_SUBSCRIPTION_COMMISSION", "WITHDRAWAL", "DEPOSIT", "SERVICE_SUBSCRIPTION_FROM_WALLET", "TRANSFER_PROFIT"],
     },
     payerId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     payerType: {

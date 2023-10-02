@@ -12,14 +12,13 @@ class FinancialGroupController {
   }
 
   async createFinancialGroup(req, res) {
-    const { type, agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
+    const { agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
     console.log({ agentSubscription, name, subscriptionStudent, subscriptionAgent })
     const result = await this.financialGroupService.createFinancialGroup({
       agentSubscription,
       name,
       subscriptionStudent,
       subscriptionAgent,
-      type,
     })
     return ResponseHandler.send({
       result,
@@ -31,7 +30,6 @@ class FinancialGroupController {
 
   async deleteFinancialGroup(req, res) {
     const { id } = req.params
-
     const foundedFinancialGroup = await this.financialGroupService.financialGroupExist(id)
     if (foundedFinancialGroup) {
       throw new ErrorHandler({
@@ -51,7 +49,7 @@ class FinancialGroupController {
   }
 
   async updateFinancialGroup(req, res) {
-    const { type, agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
+    const { agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
     const { id } = req.params
     // await this.validatorService.validMongooseId(id)
     console.log({

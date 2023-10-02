@@ -27,6 +27,7 @@ class FinancialController {
     const { serviceId } = req.query
     const foundedService = await this.FinancialService.findServiceById(serviceId)
     const foundedFinancialGroup = foundedService.financialGroupSchool
+    console.log({ foundedFinancialGroup })
     const shares = {
       admin: foundedFinancialGroup.subscriptionStudent.share.admin,
       superAgent: foundedFinancialGroup.subscriptionStudent.share.superAgent,
@@ -51,6 +52,7 @@ class FinancialController {
     const { serviceId, getway, target } = req.body
     let { price, count, factorsList } = await factorService.factorPriceByServiceId(serviceId)
     const foundedService = await this.FinancialService.findServiceById(serviceId)
+    console.log({ foundedService })
     const foundedFinancialGroup = foundedService.financialGroupSchool
     const shares = {
       admin: foundedFinancialGroup.subscriptionStudent.share.admin,
@@ -70,7 +72,7 @@ class FinancialController {
     const authority = Math.floor(Math.random() * 10000000000)
     const description = `هزینه ${count} ماه ماهیانه سرویس مدارس ${foundedService?.parent?.phoneNumber} ${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`
     const reason = "SERVICE_SUBSCRIPTION"
-    // const targetGetway = "REDIRECT_TO_PAY_SERVICE_SUBSCRIPTION_CONTINUE"
+    const targetGetway = "REDIRECT_TO_PAY_SERVICE_SUBSCRIPTION_CONTINUE"
     let payLink
 
     const createdTransaction = await this.TransactionService.createTransaction({
@@ -83,7 +85,7 @@ class FinancialController {
       school: foundedService?.school,
       driver: foundedService?.driver,
       student: foundedService?.student?._id,
-      company: foundedService?.company,
+      company: foundedService?.company._id,
       superAgent: foundedService?.superAgent,
       schoolFinancialGroup: foundedFinancialGroup._id,
       service: serviceId,
@@ -163,7 +165,6 @@ class FinancialController {
 
   async payServiceSubscriptionContinues(req, res) {
     const { reason, target, getway, respcode, transaction, authority2, authority, digitalreceipt, Authority, Status } = req.query
-    console.log({ queryZZZ: req.query })
     let foundedTransaction
     let status
 
@@ -178,7 +179,6 @@ class FinancialController {
           digitalreceipt,
           Tid: Constant.SADERAT_TERMINAL_ID,
         })
-        console.log({ adviceSaderat })
         if (adviceSaderat.Status === "Duplicate" || adviceSaderat.Status === "Ok") status = "SUCCESS"
         else status = "FAILED"
       } else if (getway === "zarinpal") {
@@ -722,7 +722,7 @@ class FinancialController {
       school: foundedService?.school,
       driver: foundedService?.driver,
       student: foundedService?.student?._id,
-      company: foundedService?.company,
+      company: foundedService?.company._id,
       superAgent: foundedService?.superAgent,
       schoolFinancialGroup: foundedFinancialGroup._id,
       service: serviceId,
@@ -746,6 +746,42 @@ class FinancialController {
       statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
       httpCode: 200,
       result: createdTransaction,
+    })
+  }
+
+  async transferToMainBalnceForCompany(req, res) {
+    const { amount } = req.body
+
+    const checkAmount = await this.FinancialService.checkProfitWallet({ amount, id: req.userId })
+    if (!checkAmount)
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE,
+        httpCode: 400,
+      })
+
+    const result = await this.FinancialService.transferToMainBalnceForCompany({ amount, id: req.userId })
+
+    await this.TransactionService.createTransaction({
+      amount,
+      transactionStatus: "SUCCESS",
+      payerId: req.userId,
+      payerType: req.type,
+      company: req.userId,
+      superAgent: result.companyInformation?.superAgent,
+      province: result.companyInformation?.province,
+      city: result.companyInformation?.city,
+      reason: "TRANSFER_PROFIT",
+      isForClient: true,
+      description: "انتقال از حساب سود به حساب اصلی",
+      isOnline: false,
+      isDeposit: true,
+    })
+
+    return ResponseHandler.send({
+      res,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+      httpCode: 200,
+      result,
     })
   }
 }

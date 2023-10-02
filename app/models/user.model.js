@@ -1,11 +1,30 @@
 const mongoose = require("mongoose")
 const mongoosePaginate = require("mongoose-paginate-v2")
 const moment = require("moment")
-const FinancialGroupSchool = require("../FinancialGroup/financialGroup.model")
 
 const userSchema = new mongoose.Schema(
   {
-    userTypes: [{ type: String }],
+    userTypes: [
+      {
+        type: String,
+        enum: [
+          "BANK_SCHOOL",
+          "COMMISSION_MANAGER_SCHOOL",
+          "TAX",
+          "DRIVER",
+          "COMPANY",
+          "SUPER_AGENT_SCHOOL",
+          "MUNICIPALITY",
+          "PASSENGER",
+          "GOVERNMENTSHIP",
+          "PROVINCE_EDUCATION",
+          "TAX",
+          "ADMIN",
+        ],
+      },
+    ],
+    isPrimary: { type: Boolean, default: false },
+    permission: { financial: { type: Boolean, default: false }, write: { type: Boolean, default: true } },
     firstName: { type: String, trim: true },
     lastName: { type: String, trim: true },
     phoneNumber: { type: String, required: true },
@@ -23,7 +42,6 @@ const userSchema = new mongoose.Schema(
       shabaNumber: { type: String },
       kartNumber: { type: String },
     },
-
     blocks: [
       {
         reason: { type: Number },
@@ -32,9 +50,7 @@ const userSchema = new mongoose.Schema(
         blockerUserType: { type: String },
         blockDate: { type: Date },
         userType: { type: String },
-        secendType: { type: String },
         managerComment: { type: String },
-        changed: [{ type: String }],
       },
     ],
 
@@ -47,6 +63,7 @@ const userSchema = new mongoose.Schema(
       insuranceExpiryDate: { type: String },
       carModel: { type: String },
       nationalCode: { type: String },
+      municipality: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       debt: [
         {
           debtorId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -149,11 +166,30 @@ const userSchema = new mongoose.Schema(
     },
 
     schoolDriverInformation: {
+      documents: {
+        approve: { type: Boolean },
+        driverLicence: { type: String },
+        insurance: { type: String },
+        nationalCardFront: { type: String },
+        carCardBack: { type: String },
+        carCardFront: { type: String },
+        checkBackground: { type: String },
+      },
+      documentsHistory: [
+        {
+          driverLicence: { type: String },
+          insurance: { type: String },
+          nationalCardFront: { type: String },
+          carCardBack: { type: String },
+          carCardFront: { type: String },
+          checkBackground: { type: String },
+        },
+      ],
       createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       createdAt: { type: Date },
-      financialGroup: {
+      financialGroupSchool: {
         type: mongoose.Schema.Types.ObjectId,
-        ref: "FinancialGroup",
+        ref: "FinancialGroupSchool",
       },
       isCompleteRegistration: { type: Boolean, default: false },
       company: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
@@ -161,6 +197,7 @@ const userSchema = new mongoose.Schema(
       updatedAt: { type: Date },
       companyName: { type: String },
       marital: { type: String },
+      municipality: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       superAgent: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       city: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
       province: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
@@ -250,7 +287,21 @@ const userSchema = new mongoose.Schema(
     },
 
     companyInformation: {
+      documents: {
+        approve: { type: Boolean },
+        nationalCardFront: { type: String },
+        nationalCardBack: { type: String },
+        companyLicence: { type: String },
+      },
+      documentsHistory: [
+        {
+          nationalCardFront: { type: String },
+          nationalCardBack: { type: String },
+          companyLicence: { type: String },
+        },
+      ],
       pushId: { type: String },
+      profitBalance: { type: Number, default: 0 },
       companyName: { type: String },
       superAgent: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       nationalCode: { type: String },
@@ -259,6 +310,9 @@ const userSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "FinancialGroupSchool",
       },
+      municipality: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      registrationNumber: { type: String },
+      nationalId: { type: String },
       city: [{ type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" }],
       province: [{ type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" }],
       address: { type: String },
@@ -286,10 +340,49 @@ const userSchema = new mongoose.Schema(
         type: mongoose.Schema.Types.ObjectId,
         ref: "FinancialGroupSchool",
       },
+      municipality: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+
       city: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
       province: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
       address: { type: String },
       townCode: { type: String },
+      updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      updatedAt: { type: Date },
+      createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      createdAt: { type: Date },
+    },
+
+    municipalityInformation: {
+      name: { type: String },
+      approved: {
+        isApproved: { type: Boolean, default: false },
+        approvedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+        approvedAt: { type: Date },
+      },
+      financialGroupSchool: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "FinancialGroupSchool",
+      },
+      city: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
+      province: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
+      updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      updatedAt: { type: Date },
+      createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      createdAt: { type: Date },
+    },
+
+    governmentShipInformation: {
+      name: { type: String },
+      province: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
+      updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      updatedAt: { type: Date },
+      createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
+      createdAt: { type: Date },
+    },
+
+    provinceEducationInformation: {
+      name: { type: String },
+      province: { type: mongoose.Schema.Types.ObjectId, ref: "ProvinceSchool" },
       updatedBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       updatedAt: { type: Date },
       createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
