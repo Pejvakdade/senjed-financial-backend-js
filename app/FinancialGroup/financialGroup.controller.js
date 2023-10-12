@@ -13,7 +13,6 @@ class FinancialGroupController {
 
   async createFinancialGroup(req, res) {
     const { agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
-    console.log({ agentSubscription, name, subscriptionStudent, subscriptionAgent })
     const result = await this.financialGroupService.createFinancialGroup({
       agentSubscription,
       name,
@@ -52,13 +51,7 @@ class FinancialGroupController {
     const { agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
     const { id } = req.params
     // await this.validatorService.validMongooseId(id)
-    console.log({
-      id,
-      agentSubscription,
-      name,
-      subscriptionStudent,
-      subscriptionAgent,
-    })
+
     const result = await this.financialGroupService.updateFinancialGroup({
       id,
       agentSubscription,

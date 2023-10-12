@@ -14,10 +14,8 @@ redis.on("error", function (err) {
 })
 class RedisService {
   async saveEx(id, data, exDate = 120) {
-    console.log({ id, data, exDate })
     redis.setex = util.promisify(redis.setex)
     const taha = await redis.setex(id, exDate, JSON.stringify(data))
-    console.log({ taha })
   }
 
   async saveExFinancialGroup(id, data, exDate = 2) {

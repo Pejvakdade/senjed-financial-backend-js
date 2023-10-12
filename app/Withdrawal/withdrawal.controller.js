@@ -3,6 +3,7 @@ const TransactionService = require("../Transaction/transaction.service")
 const ResponseHandler = require("../Handler/ResponseHandler")
 const { StatusCodes, Constant, appRouting } = require("../Values")
 const ErrorHandler = require("../Handler/ErrorHandler")
+const mongoose = require("mongoose")
 
 class WithdrawalController {
   constructor() {
@@ -14,8 +15,8 @@ class WithdrawalController {
     let { amount, shabaId, bankId, bankName } = req.body
     amount = Number(amount)
     const foundedUser = await this.WithdrawalService.findUserById(req.userId)
+    let name = `${foundedUser.firstName} ${foundedUser.lastName}`
     const isBalanceEnough = await this.WithdrawalService.checkWallet({ id: req.userId, amount })
-    console.log({ isBalanceEnough })
     if (isBalanceEnough == false)
       throw new ErrorHandler({
         statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE,
@@ -57,6 +58,7 @@ class WithdrawalController {
       userId: req.userId,
       type: req.type,
       phoneNumber: req.phoneNumber,
+      name,
       superAgent,
       driver,
       company,
@@ -77,76 +79,74 @@ class WithdrawalController {
     })
   }
 
-  async requestFromProfit(req, res) {
-    console.log("taha")
-    let { amount, shabaId, bankId, bankName } = req.body
-    amount = Number(amount)
-    console.log({ amount, shabaId, bankId, bankName })
-    const foundedUser = await this.WithdrawalService.findUserById(req.userId)
-    const isBalanceEnough = await this.WithdrawalService.checkProfitWallet({ id: req.userId, amount })
-    console.log({ isBalanceEnough })
-    if (isBalanceEnough == false)
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE,
-        httpCode: 400,
-      })
-    if (amount < Number(process.env.MIN_AMOUNT_WITHDRAWAL))
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_MIN_WITHDRAWAL,
-        httpCode: 400,
-      })
-    else if (amount > Number(process.env.MAX_AMOUNT_WITHDRAWAL)) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_MORE_THAN_MAX_WITHDRAWAL,
-        httpCode: 400,
-      })
-    }
-    await this.WithdrawalService.changeProfitWallet({ id: req.userId, amount: -amount })
-    let superAgent, company, city, province
+  // async requestFromProfit(req, res) {
+  //   let { amount, shabaId, bankId, bankName } = req.body
+  //   amount = Number(amount)
+  //   console.log({ amount, shabaId, bankId, bankName })
+  //   const foundedUser = await this.WithdrawalService.findUserById(req.userId)
+  //   const isBalanceEnough = await this.WithdrawalService.checkProfitWallet({ id: req.userId, amount })
+  //   console.log({ isBalanceEnough })
+  //   if (isBalanceEnough == false)
+  //     throw new ErrorHandler({
+  //       statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE,
+  //       httpCode: 400,
+  //     })
+  //   if (amount < Number(process.env.MIN_AMOUNT_WITHDRAWAL))
+  //     throw new ErrorHandler({
+  //       statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_MIN_WITHDRAWAL,
+  //       httpCode: 400,
+  //     })
+  //   else if (amount > Number(process.env.MAX_AMOUNT_WITHDRAWAL)) {
+  //     throw new ErrorHandler({
+  //       statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_MORE_THAN_MAX_WITHDRAWAL,
+  //       httpCode: 400,
+  //     })
+  //   }
+  //   await this.WithdrawalService.changeProfitWallet({ id: req.userId, amount: -amount })
+  //   let superAgent, company, city, province
 
-    if (req.type === "COMPANY") {
-      city = foundedUser?.companyInformation?.city[0]
-      province = foundedUser?.companyInformation?.province
-      superAgent = foundedUser?.companyInformation.superAgent
-      company = req.userId
-    }
+  //   if (req.type === "COMPANY") {
+  //     city = foundedUser?.companyInformation?.city[0]
+  //     province = foundedUser?.companyInformation?.province
+  //     superAgent = foundedUser?.companyInformation.superAgent
+  //     company = req.userId
+  //   }
 
-    const result = await this.WithdrawalService.createWithdrawal({
-      amount,
-      userId: req.userId,
-      type: req.type,
-      phoneNumber: req.phoneNumber,
-      superAgent,
-      company,
-      city,
-      province,
-      shabaId,
-      bankName,
-      bankId,
-      trackingCode: Math.floor(Math.random() * 10000000000),
-      description: "",
-      from: "PROFIT",
-    })
+  //   const result = await this.WithdrawalService.createWithdrawal({
+  //     amount,
+  //     userId: req.userId,
+  //     type: req.type,
+  //     phoneNumber: req.phoneNumber,
+  //     superAgent,
+  //     company,
+  //     city,
+  //     province,
+  //     shabaId,
+  //     bankName,
+  //     bankId,
+  //     trackingCode: Math.floor(Math.random() * 10000000000),
+  //     description: "",
+  //   })
 
-    return ResponseHandler.send({
-      res,
-      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
-      httpCode: 200,
-      result,
-    })
-  }
+  //   return ResponseHandler.send({
+  //     res,
+  //     statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+  //     httpCode: 200,
+  //     result,
+  //   })
+  // }
 
   async acc(req, res) {
     let result
     if (req.type === "ADMIN") {
-      let { withdrawalId, description } = req.body
+      let { withdrawalId, description, shabaId, bankId, bankName } = req.body
       const foundedWithrawal = await this.WithdrawalService.findWithrawalById(withdrawalId)
       if (foundedWithrawal.status === "PENDING")
         throw new ErrorHandler({
           statusCode: StatusCodes.ERROR_WITHDRAWAL_STATUS_NOT_PENDING,
           httpCode: 400,
         })
-      result = await this.WithdrawalService.updateWithrawal({ withdrawalId, status: "SUCCESS", description })
+      result = await this.WithdrawalService.updateWithrawal({ withdrawalId, status: "SUCCESS", description, shabaId, bankId, bankName })
       await this.TransactionService.createTransaction({
         receiverId: foundedWithrawal?.userId,
         receiverType: foundedWithrawal?.type,
@@ -180,18 +180,13 @@ class WithdrawalController {
     if (req.type === "ADMIN") {
       let { withdrawalId, description } = req.body
       const foundedWithrawal = await this.WithdrawalService.findWithrawalById(withdrawalId)
-      console.log({ status: foundedWithrawal.status })
       if (foundedWithrawal.status !== "PENDING")
         throw new ErrorHandler({
           statusCode: StatusCodes.ERROR_WITHDRAWAL_STATUS_NOT_PENDING,
           httpCode: 400,
         })
       result = await this.WithdrawalService.updateWithrawal({ withdrawalId, status: "REJECT", description })
-      console.log({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
-      if (foundedWithrawal?.from) {
-        if (foundedWithrawal?.from === "PROFIT") await this.WithdrawalService.changeProfitWallet({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
-        else await this.WithdrawalService.changeWallet({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
-      } else await this.WithdrawalService.changeWallet({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
+      if (foundedWithrawal?.type !== "COMPANY") await this.WithdrawalService.changeWallet({ id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount) })
 
       //todo send sms
     } else
@@ -281,6 +276,37 @@ class WithdrawalController {
       statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
       httpCode: 200,
       result,
+    })
+  }
+
+  async findNeedPay(req, res) {
+    let { page, limit, userId, type, superAgent, company, driver, city, service, province } = req.body
+
+    let query = { $and: [] }
+    query.$and.push({ status: "PENDING" })
+    if (req.type === "COMPANY") query.$and.push({ company: mongoose.Types.ObjectId(String(req.userId)) })
+
+    if (userId) query.$and.push({ userId: mongoose.Types.ObjectId(String(userId)) })
+    if (type) query.$and.push({ type })
+    if (superAgent) query.$and.push({ superAgent: mongoose.Types.ObjectId(String(superAgent)) })
+    if (company) query.$and.push({ company: mongoose.Types.ObjectId(String(userId)) })
+    if (driver) query.$and.push({ driver: mongoose.Types.ObjectId(String(driver)) })
+    if (city) query.$and.push({ city: mongoose.Types.ObjectId(String(city)) })
+    if (service) query.$and.push({ service: mongoose.Types.ObjectId(String(service)) })
+    if (province) query.$and.push({ province: mongoose.Types.ObjectId(String(province)) })
+
+    query = query.$and.length < 1 ? null : query
+    const result = await this.WithdrawalService.findNeedPay({
+      query,
+      limit,
+      page,
+    })
+
+    return ResponseHandler.send({
+      res,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+      httpCode: 200,
+      result: { doc: result, page, limit },
     })
   }
 }

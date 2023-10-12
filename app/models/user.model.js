@@ -302,6 +302,7 @@ const userSchema = new mongoose.Schema(
       ],
       pushId: { type: String },
       profitBalance: { type: Number, default: 0 },
+      isDriverWallet: { type: Boolean, default: false },
       companyName: { type: String },
       superAgent: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
       nationalCode: { type: String },

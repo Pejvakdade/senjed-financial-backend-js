@@ -24,5 +24,7 @@ class WithdrawalService {
   changeProfitWallet = async (arg) => await this.WithdrawalRepository.changeProfitWallet(arg)
 
   find = async (arg) => await this.WithdrawalRepository.find(arg)
+
+  findNeedPay = async (arg) => await this.WithdrawalRepository.findNeedPay(arg)
 }
 module.exports = new WithdrawalService()

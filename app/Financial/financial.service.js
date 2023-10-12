@@ -1,103 +1,121 @@
-const FinancialRepository = require("./financial.repository")
-const FinancialGroupService = require("../FinancialGroup/financialGroup.service")
-const FactorService = require("../Factor/factor.service")
-const FactorRepository = require("../Factor/factor.repository")
+const FinancialRepository = require("./financial.repository");
+const FinancialGroupService = require("../FinancialGroup/financialGroup.service");
+const FactorService = require("../Factor/factor.service");
+const WithdrawalService = require("../Withdrawal/withdrawal.service");
+const DebtService = require("../Debt/debt.service");
+const FactorRepository = require("../Factor/factor.repository");
 
-const TransactionRepository = require("../Transaction/transaction.repository")
-const UtilService = require("../Utils/util.service")
-const Api = require("../Api")
-const ErrorHandler = require("../Handler/ErrorHandler")
-const { StatusCodes, Message } = require("../Values")
+const TransactionRepository = require("../Transaction/transaction.repository");
+const UtilService = require("../Utils/util.service");
+const Api = require("../Api");
+const ErrorHandler = require("../Handler/ErrorHandler");
+const {StatusCodes, Message} = require("../Values");
 
 class FinancialService {
-  constructor(financialRepository, utilService) {
-    this.financialRepository = financialRepository
-    this.utilService = utilService
+  constructor() {
+    this.FinancialRepository = FinancialRepository;
+    this.UtilService = UtilService;
+    this.DebtService = DebtService;
+    this.WithdrawalService = WithdrawalService;
   }
 
-  async internalMoneyTransfer({ withdrawalId, reason, payerId, payerType, receiverId, receiverType, isForClient, amount, description, isOnline = false, subscribe }) {
-    console.log({ withdrawalId, reason, payerId, payerType, receiverId, receiverType, isForClient, amount, description, isOnline, subscribe })
-    const checkWalletAmount = await this.financialRepository.checkWallet({
-      id: payerId,
-      amount,
-    })
-    console.log({ checkWalletAmount })
-    if (!checkWalletAmount) {
-      throw new ErrorHandler({
-        httpCode: 400,
-        statusCode: StatusCodes.ERROR_INSUFFICIENT_BALANCE,
-      })
+  async internalMoneyTransfer({
+    withdrawalId,
+    reason,
+    payerId,
+    payerType,
+    receiverId,
+    receiverType,
+    isForClient,
+    amount,
+    description,
+    isOnline = false,
+    subscribe,
+    isForCompanyProfit = false,
+  }) {
+    if (Number(amount) > 0) {
+      const checkWalletAmount = await this.FinancialRepository.checkWallet({
+        id: payerId,
+        amount,
+      });
+      if (!checkWalletAmount) {
+        throw new ErrorHandler({
+          httpCode: 400,
+          statusCode: StatusCodes.ERROR_INSUFFICIENT_BALANCE,
+        });
+      }
+
+      await TransactionRepository.createTransaction({
+        reason,
+        payerId,
+        payerType,
+        receiverId,
+        receiverType,
+        amount,
+        description,
+        isOnline,
+        isForClient,
+        isDeposit: false,
+        withdrawalId,
+        subscribe,
+      });
+
+      await this.chargeWallet({id: payerId, amount: -amount});
+      await TransactionRepository.createTransaction({
+        reason,
+        payerId,
+        payerType,
+        receiverId,
+        receiverType,
+        amount,
+        description,
+        isOnline,
+        isForClient,
+        isDeposit: true,
+        withdrawalId,
+        subscribe,
+      });
+      await this.chargeWallet({id: receiverId, amount, isForCompanyProfit});
+      return true;
     }
-
-    await TransactionRepository.createTransaction({
-      reason,
-      payerId,
-      payerType,
-      receiverId,
-      receiverType,
-      amount,
-      description,
-      isOnline,
-      isForClient,
-      isDeposit: false,
-      withdrawalId,
-      subscribe,
-    })
-
-    await this.chargeWallet({ id: payerId, amount: -amount })
-    await TransactionRepository.createTransaction({
-      reason,
-      payerId,
-      payerType,
-      receiverId,
-      receiverType,
-      amount,
-      description,
-      isOnline,
-      isForClient,
-      isDeposit: true,
-      withdrawalId,
-      subscribe,
-    })
-    await this.chargeWallet({ id: receiverId, amount, type: receiverType })
+    return true;
   }
 
-  async paySubscriptionSuccess({ foundedTransaction }) {
-    const foundedService = await this.financialRepository.findServiceById(foundedTransaction.service)
-    const foundedFinancialGroup = foundedService.financialGroupSchool
+  async paySubscriptionSuccess({foundedTransaction}) {
+    const foundedService = await this.FinancialRepository.findServiceById(foundedTransaction.service);
+    const foundedFinancialGroup = foundedService.financialGroupSchool;
     //* pay others commission And  send sms for payer:
-    await this.transferSubscriptionShare({ foundedTransaction, foundedService, foundedFinancialGroup })
+    await this.transferSubscriptionShare({foundedTransaction, foundedService, foundedFinancialGroup});
     //* add subscription days
-    await this.financialRepository.addSubscriptionDay({
+    await this.FinancialRepository.addSubscriptionDay({
       serviceId: foundedService._id,
       days: Number(foundedService.cycle) * Number(foundedTransaction.count),
-    })
+    });
     //* unblock Service
-    await this.financialRepository.deleteBlockByReasonAndUserType({
+    await this.FinancialRepository.deleteBlockByReasonAndUserType({
       serviceId: String(foundedService._id),
       blockReason: 20011,
-    })
+    });
 
     //* change factor status
     await FactorRepository.changeFactorStatus({
       factorsList: foundedTransaction.factorsList,
       paidBy: foundedTransaction.payerId,
       paidDate: Date.now(),
-    })
+    });
   }
 
-  async transferSubscriptionShare({ foundedTransaction, foundedService, foundedFinancialGroup }) {
+  async transferSubscriptionShare({foundedTransaction, foundedService, foundedFinancialGroup}) {
     const shares = {
       admin: foundedFinancialGroup.subscriptionStudent.share.admin,
       superAgent: foundedFinancialGroup.subscriptionStudent.share.superAgent,
       company: foundedFinancialGroup.subscriptionStudent.share.company,
       driver: foundedFinancialGroup.subscriptionStudent.share.driver,
       tax: foundedFinancialGroup.subscriptionStudent.share.tax,
-    }
-    const foundedCommissionManagerSchoolId = await this.financialRepository.findCommissionManagerSchoolId()
-    console.log({ foundedCommissionManagerSchoolId })
-    const foundedBankSchoolId = await this.financialRepository.findBankSchoolId()
-    const foundedTaxId = await this.financialRepository.findTaxId()
+    };
+    const foundedCommissionManagerSchoolId = await this.FinancialRepository.findCommissionManagerSchoolId();
+    const foundedBankSchoolId = await this.FinancialRepository.findBankSchoolId();
+    const foundedTaxId = await this.FinancialRepository.findTaxId();
 
     switch (foundedTransaction.payerType) {
       case "PASSENGER":
@@ -117,7 +135,7 @@ class FinancialService {
           receiverType: "COMMISSION_MANAGER_SCHOOL",
           amount: foundedTransaction.amount,
           subscribe: foundedTransaction._id,
-        })
+        });
 
         // BANK_SCHOOL
         await this.internalMoneyTransfer({
@@ -128,7 +146,7 @@ class FinancialService {
           receiverType: "BANK_SCHOOL",
           amount: (foundedTransaction.amount * shares.admin) / 100,
           subscribe: foundedTransaction._id,
-        })
+        });
 
         // SUPER_AGENT
         if (foundedTransaction?.superAgent) {
@@ -140,11 +158,23 @@ class FinancialService {
             receiverType: "SUPER_AGENT_SCHOOL",
             amount: (foundedTransaction.amount * shares.superAgent) / 100,
             subscribe: foundedTransaction._id,
-          })
+          });
         }
 
         // COMPANY
+
         if (foundedTransaction?.company) {
+          this.WithdrawalService.createWithdrawal({
+            amount: (foundedTransaction.amount * shares.company) / 100,
+            userId: foundedTransaction?.company,
+            type: "COMPANY",
+            superAgent: foundedTransaction?.superAgent,
+            driver: foundedTransaction?.driver,
+            company: foundedTransaction?.company,
+            city: foundedTransaction?.city,
+            phoneNumber: foundedService.company.phoneNumber,
+            province: foundedService.company.companyInformation.province,
+          });
           await this.internalMoneyTransfer({
             reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
@@ -153,20 +183,120 @@ class FinancialService {
             receiverType: "COMPANY",
             amount: (foundedTransaction.amount * shares.company) / 100,
             subscribe: foundedTransaction._id,
-          })
+            isForCompanyProfit: true,
+          });
         }
 
         // DRIVER
-        if (foundedTransaction?.driver) {
-          await this.internalMoneyTransfer({
-            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
-            payerId: foundedCommissionManagerSchoolId,
-            payerType: "COMMISSION_MANAGER_SCHOOL",
-            receiverId: foundedTransaction?.driver,
-            receiverType: "DRIVER",
-            amount: (foundedTransaction.amount * shares.driver) / 100,
-            subscribe: foundedTransaction._id,
-          })
+
+        if (foundedService.company?.companyInformation?.isDriverWallet === true) {
+          if (foundedTransaction?.driver) {
+            await this.internalMoneyTransfer({
+              reason: "SERVICE_SUBSCRIPTION_COMMISSION",
+              payerId: foundedCommissionManagerSchoolId,
+              payerType: "COMMISSION_MANAGER_SCHOOL",
+              receiverId: foundedTransaction?.driver,
+              receiverType: "DRIVER",
+              amount: (foundedTransaction.amount * shares.driver) / 100,
+              subscribe: foundedTransaction._id,
+            });
+          }
+        } else {
+          const foundedCompanyDebt = await this.DebtService.findDebtPriceForCompany(foundedTransaction.company);
+          // console.log({ foundedCompanyDebt[0].totalAmount })
+          if (foundedCompanyDebt) {
+            if (foundedCompanyDebt[0].totalAmount < (foundedTransaction.amount * shares.driver) / 100) {
+              for (const i in foundedCompanyDebt[0].debtList) {
+                await this.DebtService.payDebt(foundedCompanyDebt[i]?.debtList[i]);
+              }
+              await this.DebtService.createDebt({
+                reason: "COMPANY_DEBT_TO_DRIVER",
+                receiverId: foundedTransaction?.driver,
+                receiverType: "DRIVER",
+                superAgent: foundedTransaction?.superAgent,
+                driver: foundedTransaction?.driver,
+                student: foundedTransaction?.student,
+                service: foundedTransaction?.service,
+                company: foundedTransaction?.company,
+                city: foundedTransaction?.city,
+                amount: (foundedTransaction.amount * shares.driver) / 100,
+                factorsList: foundedTransaction?.factorsList,
+                description: "یدهی شرکت به راننده",
+                name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+                driverPhoneNumber: foundedService.driver.phoneNumber,
+                studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+              });
+              this.WithdrawalService.createWithdrawal({
+                amount: (foundedTransaction.amount * shares.driver) / 100 - Number(foundedCompanyDebt[0].totalAmount),
+                userId: foundedTransaction?.company,
+                type: "COMPANY",
+                superAgent: foundedTransaction?.superAgent,
+                driver: foundedTransaction?.driver,
+                company: foundedTransaction?.company,
+                city: foundedTransaction?.city,
+                phoneNumber: foundedService.company.phoneNumber,
+                province: foundedService.company.companyInformation.province,
+              });
+            } else {
+              await this.DebtService.createDebt({
+                reason: "COMPANY_DEBT_TO_DRIVER",
+                receiverId: foundedTransaction?.driver,
+                receiverType: "DRIVER",
+                superAgent: foundedTransaction?.superAgent,
+                driver: foundedTransaction?.driver,
+                student: foundedTransaction?.student,
+                service: foundedTransaction?.service,
+                company: foundedTransaction?.company,
+                city: foundedTransaction?.city,
+                amount: (foundedTransaction.amount * shares.driver) / 100,
+                factorsList: foundedTransaction?.factorsList,
+                description: "یدهی شرکت به راننده",
+                name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+                driverPhoneNumber: foundedService.driver.phoneNumber,
+                studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+              });
+              this.WithdrawalService.createWithdrawal({
+                amount: (foundedTransaction.amount * shares.driver) / 100,
+                userId: foundedTransaction?.company,
+                type: "COMPANY",
+                superAgent: foundedTransaction?.superAgent,
+                driver: foundedTransaction?.driver,
+                company: foundedTransaction?.company,
+                city: foundedTransaction?.city,
+                phoneNumber: foundedService.company.phoneNumber,
+                province: foundedService.company.companyInformation.province,
+              });
+            }
+          } else {
+            await this.DebtService.createDebt({
+              reason: "COMPANY_DEBT_TO_DRIVER",
+              receiverId: foundedTransaction?.driver,
+              receiverType: "DRIVER",
+              superAgent: foundedTransaction?.superAgent,
+              driver: foundedTransaction?.driver,
+              student: foundedTransaction?.student,
+              service: foundedTransaction?.service,
+              company: foundedTransaction?.company,
+              city: foundedTransaction?.city,
+              amount: (foundedTransaction.amount * shares.driver) / 100,
+              factorsList: foundedTransaction?.factorsList,
+              description: "یدهی شرکت به راننده",
+              name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+              driverPhoneNumber: foundedService.driver.phoneNumber,
+              studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+            });
+            this.WithdrawalService.createWithdrawal({
+              amount: (foundedTransaction.amount * shares.driver) / 100,
+              userId: foundedTransaction?.company,
+              type: "COMPANY",
+              superAgent: foundedTransaction?.superAgent,
+              driver: foundedTransaction?.driver,
+              company: foundedTransaction?.company,
+              city: foundedTransaction?.city,
+              phoneNumber: foundedService.company.phoneNumber,
+              province: foundedService.company.companyInformation.province,
+            });
+          }
         }
 
         // TAX
@@ -179,22 +309,21 @@ class FinancialService {
             receiverType: "TAX",
             amount: (foundedTransaction.amount * shares.tax) / 100,
             subscribe: foundedTransaction._id,
-          })
+          });
         }
-
-        break
+        break;
 
       case "DRIVER":
         //* send message to passenger
         Api.sendMessageChapar({
           userId: foundedTransaction.parent,
           message: Message.SUBSCRIPTION_PARRENT_SMS,
-        })
+        });
         //* send message to Driver
         Api.sendMessageChapar({
           userId: foundedTransaction.parent,
           message: Message.SUBSCRIPTION_DRIVER_SMS,
-        })
+        });
         // COMMISSION_MANAGER_SCHOOL
         await this.internalMoneyTransfer({
           reason: "SERVICE_SUBSCRIPTION_COMMISSION",
@@ -204,7 +333,7 @@ class FinancialService {
           receiverType: "COMMISSION_MANAGER_SCHOOL",
           amount: foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100,
           subscribe: foundedTransaction._id,
-        })
+        });
 
         // BANK_SCHOOL
         await this.internalMoneyTransfer({
@@ -215,7 +344,7 @@ class FinancialService {
           receiverType: "BANK_SCHOOL",
           amount: (foundedTransaction.amount * shares.admin) / 100,
           subscribe: foundedTransaction._id,
-        })
+        });
 
         // SUPER_AGENT
         if (foundedTransaction?.superAgent) {
@@ -227,11 +356,22 @@ class FinancialService {
             receiverType: "SUPER_AGENT_SCHOOL",
             amount: (foundedTransaction.amount * shares.superAgent) / 100,
             subscribe: foundedTransaction._id,
-          })
+          });
         }
 
         // COMPANY
         if (foundedTransaction?.company) {
+          this.WithdrawalService.createWithdrawal({
+            amount: (foundedTransaction.amount * shares.company) / 100,
+            userId: foundedTransaction?.company,
+            type: "COMPANY",
+            superAgent: foundedTransaction?.superAgent,
+            driver: foundedTransaction?.driver,
+            company: foundedTransaction?.company,
+            city: foundedTransaction?.city,
+            phoneNumber: foundedService.company.phoneNumber,
+            province: foundedService.company.companyInformation.province,
+          });
           await this.internalMoneyTransfer({
             reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
@@ -240,7 +380,8 @@ class FinancialService {
             receiverType: "COMPANY",
             amount: (foundedTransaction.amount * shares.company) / 100,
             subscribe: foundedTransaction._id,
-          })
+            isForCompanyProfit: true,
+          });
         }
 
         // TAX
@@ -253,93 +394,324 @@ class FinancialService {
             receiverType: "TAX",
             amount: (foundedTransaction.amount * shares.tax) / 100,
             subscribe: foundedTransaction._id,
-          })
+          });
         }
-        break
+        break;
 
       case "COMPANY":
         //* send message to passenger
         Api.sendMessageChapar({
           userId: foundedTransaction.parent,
           message: Message.SUBSCRIPTION_PARRENT_SMS,
-        })
+        });
         //* send message to COMPANY
         Api.sendMessageChapar({
           userId: foundedTransaction.company,
           message: Message.SUBSCRIPTION_DRIVER_COMPANY,
-        })
+        });
 
-        // COMMISSION_MANAGER_SCHOOL
-        await this.internalMoneyTransfer({
-          reason: "SERVICE_SUBSCRIPTION_COMMISSION",
-          payerId: foundedTransaction.payerId,
-          payerType: "COMPANY",
-          receiverId: foundedCommissionManagerSchoolId,
-          receiverType: "COMMISSION_MANAGER_SCHOOL",
-          amount: foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100 - (foundedTransaction.amount * shares.company) / 100,
-          subscribe: foundedTransaction._id,
-        })
+        //!check pay offline or online
+        if (foundedTransaction?.payerOriginType === "DRIVER" || foundedTransaction?.payerOriginType === "PASSENGER") {
+          const checkWallet = await this.FinancialRepository.checkWallet({
+            id: foundedTransaction.payerId,
+            amount: Number(
+              foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100 - (foundedTransaction.amount * shares.company) / 100
+            ),
+          });
+          if (checkWallet) {
+            this.FinancialRepository.chargeWalletCompany({
+              id: foundedTransaction.payerId,
+              amount: Number((foundedTransaction.amount * shares.company) / 100),
+            });
 
-        // BANK_SCHOOL
-        await this.internalMoneyTransfer({
-          reason: "SERVICE_SUBSCRIPTION_COMMISSION",
-          payerId: foundedCommissionManagerSchoolId,
-          payerType: "COMMISSION_MANAGER_SCHOOL",
-          receiverId: foundedBankSchoolId,
-          receiverType: "BANK_SCHOOL",
-          amount: (foundedTransaction.amount * shares.admin) / 100,
-          subscribe: foundedTransaction._id,
-        })
+            if (
+              foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100 - (foundedTransaction.amount * shares.company) / 100 >
+              0
+            )
+              await this.internalMoneyTransfer({
+                reason: "SERVICE_SUBSCRIPTION_COMMISSION",
+                payerId: foundedTransaction.payerId,
+                payerType: "COMPANY",
+                receiverId: foundedCommissionManagerSchoolId,
+                receiverType: "COMMISSION_MANAGER_SCHOOL",
+                amount:
+                  foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100 - (foundedTransaction.amount * shares.company) / 100,
+                subscribe: foundedTransaction._id,
+              });
 
-        // SUPER_AGENT
-        if (foundedTransaction?.superAgent) {
+            // BANK_SCHOOL
+            if ((foundedTransaction.amount * shares.admin) / 100 > 0)
+              await this.internalMoneyTransfer({
+                reason: "SERVICE_SUBSCRIPTION_COMMISSION",
+                payerId: foundedCommissionManagerSchoolId,
+                payerType: "COMMISSION_MANAGER_SCHOOL",
+                receiverId: foundedBankSchoolId,
+                receiverType: "BANK_SCHOOL",
+                amount: (foundedTransaction.amount * shares.admin) / 100,
+                subscribe: foundedTransaction._id,
+              });
+
+            // SUPER_AGENT
+            if (foundedTransaction?.superAgent) {
+              await this.internalMoneyTransfer({
+                reason: "SERVICE_SUBSCRIPTION_COMMISSION",
+                payerId: foundedCommissionManagerSchoolId,
+                payerType: "COMMISSION_MANAGER_SCHOOL",
+                receiverId: foundedTransaction?.superAgent,
+                receiverType: "SUPER_AGENT_SCHOOL",
+                amount: (foundedTransaction.amount * shares.superAgent) / 100,
+                subscribe: foundedTransaction._id,
+              });
+            }
+
+            // TAX
+            await this.internalMoneyTransfer({
+              reason: "SERVICE_SUBSCRIPTION_COMMISSION",
+              payerId: foundedCommissionManagerSchoolId,
+              payerType: "COMMISSION_MANAGER_SCHOOL",
+              receiverId: foundedTaxId,
+              receiverType: "TAX",
+              amount: (foundedTransaction.amount * shares.tax) / 100,
+              subscribe: foundedTransaction._id,
+            });
+
+            if (foundedTransaction?.payerOriginType === "PASSENGER") {
+              await this.DebtService.createDebt({
+                reason: "COMPANY_DEBT_TO_DRIVER",
+                receiverId: foundedTransaction?.driver,
+                receiverType: "DRIVER",
+                superAgent: foundedTransaction?.superAgent,
+                driver: foundedTransaction?.driver,
+                student: foundedTransaction?.student,
+                service: foundedTransaction?.service,
+                company: foundedTransaction?.company,
+                city: foundedTransaction?.city,
+                amount: (foundedTransaction.amount * shares.driver) / 100,
+                factorsList: foundedTransaction?.factorsList,
+                description: "یدهی شرکت به راننده",
+                name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+                driverPhoneNumber: foundedService.driver.phoneNumber,
+                studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+              });
+            } else {
+              await this.DebtService.createDebt({
+                reason: "COMPANY_DEBT_TO_DRIVER",
+                status: "SUCCESS",
+                receiverId: foundedTransaction?.driver,
+                receiverType: "DRIVER",
+                superAgent: foundedTransaction?.superAgent,
+                driver: foundedTransaction?.driver,
+                student: foundedTransaction?.student,
+                service: foundedTransaction?.service,
+                company: foundedTransaction?.company,
+                city: foundedTransaction?.city,
+                amount: (foundedTransaction.amount * shares.driver) / 100,
+                factorsList: foundedTransaction?.factorsList,
+                description: "یدهی شرکت به راننده",
+                name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+                driverPhoneNumber: foundedService.driver.phoneNumber,
+                studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+              });
+            }
+          } else {
+            // this.FinancialRepository.chargeWalletCompany({ id: foundedTransaction.payerId, amount: Number((foundedTransaction.amount * shares.company) / 100) })
+
+            // BANK_SCHOOL
+            await this.DebtService.createDebt({
+              reason: "COMPANY_DEBT_FOR_SERVICE_SUBSCRIPTION_COMMISSION",
+              receiverId: foundedBankSchoolId,
+              receiverType: "BANK_SCHOOL",
+              payerId: foundedTransaction.payerId,
+              payerType: "COMPANY",
+              amount: (foundedTransaction.amount * shares.admin) / 100,
+              subscribe: foundedTransaction._id,
+              description: "یدهی شرکت به اپلیکیشن",
+              superAgent: foundedTransaction?.superAgent,
+              driver: foundedTransaction?.driver,
+              student: foundedTransaction?.student,
+              service: foundedTransaction?.service,
+              company: foundedTransaction?.company,
+              city: foundedTransaction?.city,
+              factorsList: foundedTransaction?.factorsList,
+              name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+              driverPhoneNumber: foundedService.driver.phoneNumber,
+              studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+            });
+
+            // SUPER_AGENT
+            await this.DebtService.createDebt({
+              reason: "COMPANY_DEBT_FOR_SERVICE_SUBSCRIPTION_COMMISSION",
+              receiverId: foundedTransaction?.superAgent,
+              receiverType: "SUPER_AGENT_SCHOOL",
+              payerId: foundedTransaction.payerId,
+              payerType: "COMPANY",
+              amount: (foundedTransaction.amount * shares.superAgent) / 100,
+              subscribe: foundedTransaction._id,
+              description: "یدهی شرکت به اموزش پرورش",
+              superAgent: foundedTransaction?.superAgent,
+              driver: foundedTransaction?.driver,
+              student: foundedTransaction?.student,
+              service: foundedTransaction?.service,
+              company: foundedTransaction?.company,
+              city: foundedTransaction?.city,
+              factorsList: foundedTransaction?.factorsList,
+              name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+              driverPhoneNumber: foundedService.driver.phoneNumber,
+              studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+            });
+
+            // TAX
+            await this.DebtService.createDebt({
+              reason: "COMPANY_DEBT_FOR_SERVICE_SUBSCRIPTION_COMMISSION",
+              receiverId: foundedTaxId,
+              receiverType: "TAX",
+              payerId: foundedTransaction.payerId,
+              payerType: "COMPANY",
+              amount: (foundedTransaction.amount * shares.tax) / 100,
+              subscribe: foundedTransaction._id,
+              description: "یدهی شرکت به مالیات",
+              superAgent: foundedTransaction?.superAgent,
+              driver: foundedTransaction?.driver,
+              student: foundedTransaction?.student,
+              service: foundedTransaction?.service,
+              company: foundedTransaction?.company,
+              city: foundedTransaction?.city,
+              factorsList: foundedTransaction?.factorsList,
+              name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+              driverPhoneNumber: foundedService.driver.phoneNumber,
+              studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+            });
+
+            if (foundedTransaction?.payerOriginType === "PASSENGER") {
+              await this.DebtService.createDebt({
+                reason: "COMPANY_DEBT_TO_DRIVER",
+                receiverId: foundedTransaction?.driver,
+                receiverType: "DRIVER",
+                superAgent: foundedTransaction?.superAgent,
+                driver: foundedTransaction?.driver,
+                student: foundedTransaction?.student,
+                service: foundedTransaction?.service,
+                company: foundedTransaction?.company,
+                city: foundedTransaction?.city,
+                amount: (foundedTransaction.amount * shares.driver) / 100,
+                factorsList: foundedTransaction?.factorsList,
+                description: "یدهی شرکت به راننده",
+                name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+                driverPhoneNumber: foundedService.driver.phoneNumber,
+                studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+              });
+            } else {
+              await this.DebtService.createDebt({
+                reason: "COMPANY_DEBT_TO_DRIVER",
+                status: "SUCCESS",
+                receiverId: foundedTransaction?.driver,
+                receiverType: "DRIVER",
+                superAgent: foundedTransaction?.superAgent,
+                driver: foundedTransaction?.driver,
+                student: foundedTransaction?.student,
+                service: foundedTransaction?.service,
+                company: foundedTransaction?.company,
+                city: foundedTransaction?.city,
+                amount: (foundedTransaction.amount * shares.driver) / 100,
+                factorsList: foundedTransaction?.factorsList,
+                description: "یدهی شرکت به راننده",
+                name: `${foundedService?.driver?.firstName} ${foundedService?.driver?.lastName}`,
+                driverPhoneNumber: foundedService.driver.phoneNumber,
+                studentName: `${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`,
+              });
+            }
+          }
+
+          //
+        } else {
+          // COMMISSION_MANAGER_SCHOOL
+          await this.internalMoneyTransfer({
+            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
+            payerId: foundedTransaction.payerId,
+            payerType: "COMPANY",
+            receiverId: foundedCommissionManagerSchoolId,
+            receiverType: "COMMISSION_MANAGER_SCHOOL",
+            amount:
+              foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100 - (foundedTransaction.amount * shares.company) / 100,
+            subscribe: foundedTransaction._id,
+          });
+
+          // BANK_SCHOOL
           await this.internalMoneyTransfer({
             reason: "SERVICE_SUBSCRIPTION_COMMISSION",
             payerId: foundedCommissionManagerSchoolId,
             payerType: "COMMISSION_MANAGER_SCHOOL",
-            receiverId: foundedTransaction?.superAgent,
-            receiverType: "SUPER_AGENT_SCHOOL",
-            amount: (foundedTransaction.amount * shares.superAgent) / 100,
+            receiverId: foundedBankSchoolId,
+            receiverType: "BANK_SCHOOL",
+            amount: (foundedTransaction.amount * shares.admin) / 100,
             subscribe: foundedTransaction._id,
-          })
+          });
+
+          // SUPER_AGENT
+          if (foundedTransaction?.superAgent) {
+            await this.internalMoneyTransfer({
+              reason: "SERVICE_SUBSCRIPTION_COMMISSION",
+              payerId: foundedCommissionManagerSchoolId,
+              payerType: "COMMISSION_MANAGER_SCHOOL",
+              receiverId: foundedTransaction?.superAgent,
+              receiverType: "SUPER_AGENT_SCHOOL",
+              amount: (foundedTransaction.amount * shares.superAgent) / 100,
+              subscribe: foundedTransaction._id,
+            });
+          }
+
+          // TAX
+          if (foundedTransaction?.driver) {
+            await this.internalMoneyTransfer({
+              reason: "SERVICE_SUBSCRIPTION_COMMISSION",
+              payerId: foundedCommissionManagerSchoolId,
+              payerType: "COMMISSION_MANAGER_SCHOOL",
+              receiverId: foundedTaxId,
+              receiverType: "TAX",
+              amount: (foundedTransaction.amount * shares.tax) / 100,
+              subscribe: foundedTransaction._id,
+            });
+          }
         }
 
-        // TAX
-        if (foundedTransaction?.driver) {
-          await this.internalMoneyTransfer({
-            reason: "SERVICE_SUBSCRIPTION_COMMISSION",
-            payerId: foundedCommissionManagerSchoolId,
-            payerType: "COMMISSION_MANAGER_SCHOOL",
-            receiverId: foundedTaxId,
-            receiverType: "TAX",
-            amount: (foundedTransaction.amount * shares.tax) / 100,
-            subscribe: foundedTransaction._id,
-          })
-        }
-        break
+        break;
     }
 
-    return true
+    return true;
   }
 
   async findServiceById(serviceId) {
-    return await this.financialRepository.findServiceById(serviceId)
+    return await this.FinancialRepository.findServiceById(serviceId);
   }
 
-  updateHasFactorFlag = async (arg) => await this.financialRepository.updateHasFactorFlag(arg)
+  /**
+   * @param {string} serviceId
+   * @param {boolean} factorStatus
+   * @returns {Promise<any>}
+   */
+  findServiceByIdAndUpdateHasFactor = async (serviceId, factorStatus) =>
+    await this.FinancialRepository.findServiceByIdAndUpdateHasFactor(serviceId, factorStatus);
 
-  findUserById = async (arg) => await this.financialRepository.findUserById(arg)
+  async findServiceByDriverId(driverId) {
+    return await this.FinancialRepository.findServiceByDriverId(driverId);
+  }
 
-  checkProfitWallet = async (arg) => await this.financialRepository.checkProfitWallet(arg)
-  
-  transferToMainBalnceForCompany = async (arg) => await this.financialRepository.transferToMainBalnceForCompany(arg)
+  updateHasFactorFlag = async (arg) => await this.FinancialRepository.updateHasFactorFlag(arg);
 
-  async chargeWallet({ id, amount, type }) {
-    console.log({ id, amount, type })
-    let canWithdrawal = false
-    if (amount < 0) canWithdrawal = await this.financialRepository.canWithdrawal({ id, amount })
-    if (amount < 0 && !canWithdrawal) return false
-    else return type === "COMPANY" ? await this.financialRepository.chargeWalletCompany({ id, amount }) : await this.financialRepository.chargeWallet({ id, amount })
+  findUserById = async (arg) => await this.FinancialRepository.findUserById(arg);
+
+  checkProfitWallet = async (arg) => await this.FinancialRepository.checkProfitWallet(arg);
+
+  // transferToMainBalnceForCompany = async (arg) => await this.FinancialRepository.transferToMainBalnceForCompany(arg)
+
+  async chargeWallet({id, amount, isForCompanyProfit}) {
+    let canWithdrawal = false;
+    if (amount < 0) canWithdrawal = await this.FinancialRepository.canWithdrawal({id, amount});
+    if (amount < 0 && !canWithdrawal) return false;
+    else
+      return isForCompanyProfit === true
+        ? await this.FinancialRepository.chargeWalletCompany({id, amount})
+        : await this.FinancialRepository.chargeWallet({id, amount});
   }
 }
-module.exports = new FinancialService(FinancialRepository, UtilService)
+module.exports = new FinancialService();

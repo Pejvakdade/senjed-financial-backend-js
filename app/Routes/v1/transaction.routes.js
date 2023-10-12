@@ -1,15 +1,15 @@
-const express = require("express")
-const router = express.Router()
-const Heimdall = require("../../Middleware/heimdall")
-const TransactionController = require("../../Transaction/transaction.controller")
+const express = require("express");
+const router = express.Router();
+const {Heimdall, Auth} = require("../../Middleware");
+const TransactionController = require("../../Transaction/transaction.controller");
 
 const use = (fn) => (req, res, next) => {
-  Promise.resolve(fn(req, res, next)).catch(next)
-}
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
 
 // router.post('/s-f', Heimdall, use(TransactionController.searchAndFilterTransaction.bind(TransactionController)))
-router.post("/find", Heimdall, use(TransactionController.findTransactions.bind(TransactionController)))
-router.post("/find-child", Heimdall, use(TransactionController.findChildTransactions.bind(TransactionController)))
+router.post("/find", Auth, use(TransactionController.findTransactions.bind(TransactionController)));
+router.post("/find-child", Heimdall, use(TransactionController.findChildTransactions.bind(TransactionController)));
 // router.get('/gateway', Heimdall, use(TransactionController.getTransactionsByGateway.bind(TransactionController)))
 // router.get('/status', Heimdall, use(TransactionController.getTransactionByStatus.bind(TransactionController)))
 // router.get('/reason', Heimdall, use(TransactionController.getTransactionsByReason.bind(TransactionController)))
@@ -17,4 +17,4 @@ router.post("/find-child", Heimdall, use(TransactionController.findChildTransact
 // router.get('/transaction-by-id', Heimdall, use(TransactionController.getTransactionById.bind(TransactionController)))
 // router.post('/find', Heimdall, use(TransactionController.findTransactions.bind(TransactionController)))
 
-module.exports = router
+module.exports = router;

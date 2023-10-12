@@ -1,13 +1,13 @@
 const mongoose = require("mongoose")
 const mongoosePaginate = require("mongoose-paginate-v2")
 const ProvinceSchool = require("../models/province.model")
+const mongooseAggregate = require("mongoose-aggregate-paginate-v2")
 
 const WithdrawalModel = new mongoose.Schema(
   {
     userId: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
-    from: { type: String, enum: ["BALANCE", "PROFIT"], default: "BALANCE" },
-
     phoneNumber: { type: String },
+    name: { type: String },
     type: {
       type: String,
       enum: ["DRIVER", "PASSENGER", "COMPANY", "SUPER_AGENT_SCHOOL", "TAX", "BANK_SCHOOL", "COMMISSION_MANAGER_SCHOOL"],
@@ -32,5 +32,6 @@ const WithdrawalModel = new mongoose.Schema(
   },
   { timestamps: true }
 )
+WithdrawalModel.plugin(mongooseAggregate)
 WithdrawalModel.plugin(mongoosePaginate)
 module.exports = mongoose.model("Withdrawal", WithdrawalModel)

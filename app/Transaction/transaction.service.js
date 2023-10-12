@@ -1,84 +1,132 @@
-const TransactionRepository = require("./transaction.repository")
+const TransactionRepository = require("./transaction.repository");
 class TransactionService {
   constructor(transactionRepository) {
-    this.transactionRepository = transactionRepository
+    this.transactionRepository = transactionRepository;
   }
 
+  /**
+   * @param {{
+   *  city: string,
+   *  count: number,
+   *  amount: number,
+   *  school: string,
+   *  parent: string,
+   *  reason: string,
+   *  driver: string,
+   *  fishId?: string,
+   *  getway?: string,
+   *  target?: string,
+   *  payerId: string,
+   *  service: string,
+   *  student: string,
+   *  company: string,
+   *  isOnline: boolean,
+   *  payerType: string,
+   *  authority: number,
+   *  isDeposit: boolean,
+   *  superAgent: string,
+   *  receiverId?: string,
+   *  factorsList: string[],
+   *  isForClient: boolean,
+   *  description: string,
+   *  secondParent: string,
+   *  receiverType?: string,
+   *  withdrawalId?: string,
+   *  offlinePayType?: string,
+   *  payerOriginType: string,
+   *  transactionStatus: string,
+   *  schoolFinancialGroup: string,
+   * }} param0
+   *
+   * @returns {Promise<any>}
+   */
   async createTransaction({
-    amount,
-    transactionStatus,
-    payerId,
-    payerType,
-    receiverId,
-    receiverType,
+    city,
+    count,
+    fishId,
     parent,
-    secondParent,
+    getway,
     school,
-    service,
     driver,
-    student,
-    company,
-    superAgent,
-    authority,
-    schoolFinancialGroup,
+    amount,
     reason,
     target,
-    count,
+    service,
+    student,
+    company,
+    payerId,
+    isOnline,
+    payerType,
+    authority,
+    isDeposit,
+    superAgent,
+    receiverId,
     factorsList,
     isForClient,
     description,
-    getway,
-    isOnline,
-    isDeposit,
-    city,
+    secondParent,
     withdrawalId,
+    receiverType,
+    offlinePayType,
+    payerOriginType,
+    transactionStatus,
+    schoolFinancialGroup,
   }) {
     return await this.transactionRepository.createTransaction({
-      amount,
-      transactionStatus,
-      payerId,
-      payerType,
-      service,
-      receiverId,
-      receiverType,
+      city,
+      count,
+      fishId,
       parent,
-      secondParent,
+      getway,
       school,
       driver,
-      student,
-      city,
-      company,
-      superAgent,
-      authority,
-      schoolFinancialGroup,
+      amount,
       reason,
       target,
-      count,
+      service,
+      student,
+      company,
+      payerId,
+      isOnline,
+      payerType,
+      authority,
+      isDeposit,
+      superAgent,
+      receiverId,
       factorsList,
       isForClient,
       description,
-      getway,
-      isOnline,
-      isDeposit,
+      secondParent,
       withdrawalId,
-    })
+      receiverType,
+      offlinePayType,
+      payerOriginType,
+      transactionStatus,
+      schoolFinancialGroup,
+    });
   }
 
   async findTransactionByAuthority(authority) {
-    const result = await this.transactionRepository.findTransactionByAuthority(authority)
-    return result
+    const result = await this.transactionRepository.findTransactionByAuthority(authority);
+    return result;
   }
 
-  findTransactions = async (arg) => await this.transactionRepository.findTransactions(arg)
+  findTransactions = async (arg) => await this.transactionRepository.findTransactions(arg);
 
-  async updateTransaction({ authority, reason, status, isCallBack }) {
+  updateManyTransaction = async (arg) => await this.transactionRepository.updateManyTransaction(arg);
+
+  findManyTransactionByAuthority = async (arg) => await this.transactionRepository.findManyTransactionByAuthority(arg);
+
+  faildMayTransactiondByDriverId = async (arg) => await this.transactionRepository.faildMayTransactiondByDriverId(arg);
+
+  async updateTransaction({authority, reason, status, isCallBack}) {
     await this.transactionRepository.updateTransaction({
       authority,
       reason,
       status,
       isCallBack,
-    })
-    return true
+    });
+    return true;
   }
 }
-module.exports = new TransactionService(TransactionRepository)
+module.exports = new TransactionService(TransactionRepository);

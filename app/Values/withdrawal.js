@@ -12,7 +12,6 @@ module.exports = {
   },
 
   userIdC: (userId) => {
-    console.log({ 2: { userId } })
 
     return {
       userId

@@ -7,7 +7,6 @@ class FinancialGroupRepository {
   }
 
   async createFinancialGroup({ type, agentSubscription, name, subscriptionStudent, subscriptionAgent }) {
-    console.log({ 2: { type, agentSubscription, name, subscriptionStudent, subscriptionAgent } })
     const result = await FinancialGroup({ type, agentSubscription, name, subscriptionStudent, subscriptionAgent }).save()
     return result
   }

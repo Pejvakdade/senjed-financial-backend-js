@@ -5,14 +5,12 @@ class ZarinpalService {
 
   async request({ amount, callback_url, description, trackingCode }) {
     const merchantId = process.env.MERCHANT_ID_ZARINPAL
-    console.log({ merchantId })
     const data = JSON.stringify({
       merchant_id: merchantId,
       amount: String(amount),
       callback_url,
       description,
     })
-    console.log({ data })
     var config = {
       method: "post",
       maxBodyLength: Infinity,
@@ -23,12 +21,10 @@ class ZarinpalService {
       data,
     }
     const response = await axios(config)
-    console.log({ taha: response.data })
 
     if (response.data.data.code === 100) {
       return response.data.data.authority.toUpperCase()
     } else {
-      console.log({ resErr: response.data.data })
       return false
     }
   }

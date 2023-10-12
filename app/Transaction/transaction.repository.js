@@ -1,9 +1,9 @@
-const SchoolTransaction = require("./transaction.model")
-const UtilService = require("../Utils/util.service")
-const mongoose = require("mongoose")
+const SchoolTransaction = require("./transaction.model");
+const UtilService = require("../Utils/util.service");
+const mongoose = require("mongoose");
 class TransactionRepository {
   constructor(utilService) {
-    this.utilService = utilService
+    this.utilService = utilService;
   }
 
   async createTransaction({
@@ -36,8 +36,8 @@ class TransactionRepository {
     subscribe,
     city,
     withdrawalId,
+    payerOriginType,
   }) {
-    console.log({ repoooooooo: { city, getway } })
     return await SchoolTransaction({
       amount,
       transactionStatus,
@@ -68,23 +68,36 @@ class TransactionRepository {
       isDeposit,
       subscribe,
       withdrawalId,
-    }).save()
+      payerOriginType,
+    }).save();
   }
 
   async findTransactionByAuthority(authority) {
-    console.log(authority)
-    const result = await SchoolTransaction.findOne({ authority })
-    return result
+    const result = await SchoolTransaction.findOne({authority});
+    return result;
   }
 
-  async updateTransaction({ authority, reason, status, isCallBack }) {
-    await SchoolTransaction.findOneAndUpdate({ authority }, { reason, transactionStatus: status, isCallBack })
-    return true
+  async findManyTransactionByAuthority(authority) {
+    return await SchoolTransaction.find({authority});
   }
 
-  async findTransactions({ query, limit, page, populate }) {
-    return await SchoolTransaction.paginate(query, { limit, page, lean: true, sort: { createdAt: -1 }, populate })
+  async updateTransaction({authority, reason, status, isCallBack}) {
+    await SchoolTransaction.findOneAndUpdate({authority}, {reason, transactionStatus: status, isCallBack});
+    return true;
+  }
+
+  async updateManyTransaction({authority, reason, status, isCallBack}) {
+    await SchoolTransaction.updateMany({authority}, {reason, transactionStatus: status, isCallBack});
+    return true;
+  }
+
+  async findTransactions({query, limit, page, populate}) {
+    return await SchoolTransaction.paginate(query, {limit, page, lean: true, sort: {createdAt: -1}, populate});
+  }
+
+  async faildMayTransactiondByDriverId(driverId) {
+    return await SchoolTransaction.updateMany({driver: driverId}, {$set: {transactionStatus: "FAILED"}});
   }
 }
 
-module.exports = new TransactionRepository(UtilService)
+module.exports = new TransactionRepository(UtilService);
