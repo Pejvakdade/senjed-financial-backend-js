@@ -39,10 +39,12 @@ class FactorService {
     if (foundedExpireNowServices.length)
       for (const i in foundedExpireNowServices) {
         const foundedFinancialGroup = foundedExpireNowServices[i].financialGroupSchool;
+
         if (!foundedFinancialGroup) continue;
         const cycle = foundedExpireNowServices[i].cycle;
         let arrayOfDate = [];
         let daysLeft = moment.duration(moment(foundedExpireNowServices[i].expire, "YYYY-MM-DD").diff(moment())).asDays(); // tedad roz gozashte
+
         if (daysLeft < 0) {
           daysLeft = Math.abs(daysLeft);
 
@@ -112,7 +114,7 @@ class FactorService {
    */
   async factorPriceByServiceId(serviceId) {
     const factorList = await this.FactorRepository.factorListByServiceId(serviceId);
-  
+
     let price = 0;
     for (const i in factorList) {
       price = factorList[i].price + price;
@@ -137,5 +139,7 @@ class FactorService {
   }
 
   changeFactorStatus = async (arg) => await this.FactorRepository.changeFactorStatus(arg);
+
+  deleteFactorByServiceId = async (arg) => await this.FactorRepository.deleteFactorByServiceId(arg);
 }
 module.exports = new FactorService();

@@ -33,7 +33,7 @@ class TransactionService {
    *  receiverType?: string,
    *  withdrawalId?: string,
    *  offlinePayType?: string,
-   *  payerOriginType: string,
+   *  payerOriginType?: string,
    *  transactionStatus: string,
    *  schoolFinancialGroup: string,
    * }} param0

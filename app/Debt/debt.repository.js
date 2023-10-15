@@ -1,13 +1,13 @@
-const User = require("../models/user.model")
-const Debt = require("./debt.model")
-const Service = require("../models/service.model")
-const mongoose = require("mongoose")
+const User = require("../models/user.model");
+const Debt = require("./debt.model");
+const Service = require("../models/service.model");
+const mongoose = require("mongoose");
 
 class DebtRepository {
   constructor() {}
   findService = async (serviceId) => {
-    return await Service.findById(serviceId)
-  }
+    return await Service.findById(serviceId);
+  };
 
   createDebt = async ({
     reason,
@@ -52,38 +52,56 @@ class DebtRepository {
       payerId,
       payerType,
       subscribe,
-    }).save()
-    return result
-  }
+    }).save();
+    return result;
+  };
 
-  async findDebt({ query, limit, page, populate }) {
-    return limit ? await Debt.paginate(query, { limit, page, lean: true, sort: { createdAt: -1 }, populate }) : await Debt.find(query)
+  async findDebt({query, limit, page, populate}) {
+    return limit ? await Debt.paginate(query, {limit, page, lean: true, sort: {createdAt: -1}, populate}) : await Debt.find(query);
   }
 
   async findDebtPriceForCompany(user) {
-    const haveDebt = await Debt.findOne({ company: user, payerType: "COMPANY", status: "PENDING" })
+    const haveDebt = await Debt.findOne({
+      company: user,
+      payerType: "COMPANY",
+      status: "PENDING",
+      reason: "COMPANY_DEBT_FOR_SERVICE_SUBSCRIPTION_COMMISSION",
+    });
     if (haveDebt) {
-      const result = await Debt.aggregate([
-        {
-          $match: { payerId: mongoose.Types.ObjectId(String(user)), payerType: "COMPANY", status: "PENDING" },
-        },
-        {
-          $group: {
-            _id: "$receiverId",
-            totalAmount: { $sum: "$amount" },
-            debtList: { $push: "$_id" },
-          },
-        },
-      ])
-      return result
-    } else return false
+      const result = await Debt.find({
+        company: user,
+        payerType: "COMPANY",
+        status: "PENDING",
+        reason: "COMPANY_DEBT_FOR_SERVICE_SUBSCRIPTION_COMMISSION",
+      });
+
+      // const result = await Debt.aggregate([
+      //   {
+      //     $match: { payerId: mongoose.Types.ObjectId(String(user)), payerType: "COMPANY", status: "PENDING", reason: "COMPANY_DEBT_FOR_SERVICE_SUBSCRIPTION_COMMISSION" },
+      //   },
+      //   {
+      //     $group: {
+      //       _id: "$receiverId",
+      //       totalAmount: { $sum: "$amount" },
+      //       debtList: { $push: "$_id" },
+      //     },
+      //   },
+      // ])
+      return result;
+    } else return false;
   }
 
+  /**
+   * Find Debt by ID
+   *
+   * @param {string} debtId
+   * @returns {Promise<import("./debt.model").DebtModel | null>}
+   */
   async findDebtById(debtId) {
-    return await Debt.findById(debtId)
+    return await Debt.findById(debtId);
   }
 
-  async findAllDebtPrice({ query }) {
+  async findAllDebtPrice({query}) {
     const result = await Debt.aggregate([
       {
         $match: query,
@@ -91,24 +109,48 @@ class DebtRepository {
       {
         $group: {
           _id: "$receiverId",
-          totalAmount: { $sum: "$amount" },
-          trackingCode: { $push: "$trackingCode" },
-          name: { $first: "$name" },
-          driverPhoneNumber: { $first: "$driverPhoneNumber" },
-          studentName: { $first: "$studentName" },
-          count: { $count: {} },
+          totalAmount: {$sum: "$amount"},
+          trackingCode: {$push: "$trackingCode"},
+          name: {$first: "$name"},
+          driverPhoneNumber: {$first: "$driverPhoneNumber"},
+          studentName: {$first: "$studentName"},
+          count: {$count: {}},
         },
       },
-    ])
+    ]);
 
-    return result
+    return result;
   }
 
-  async changeDebtStatus({ debtId, status, paidDate }) {
+  async changeDebtStatus({debtId, status, paidDate}) {
     return await Debt.findByIdAndUpdate(debtId, {
       status,
       paidDate,
-    })
+    });
+  }
+
+  /**
+   *
+   * @param {string} _id
+   * @param {{
+   *    fishId: string,
+   *    paidDate: string,
+   *    status: "SUCCESS" | "FAILED" | "PENDING",
+   *    paymentType: "CARD_BY_CARD" | "POS_MACHINE" |"TRANSFER"
+   * }} values
+   * @returns {Promise<import("./debt.model").DebtModel | null>}
+   */
+  async findByIdAndUpdateAfterPayment(_id, values) {
+    return await Debt.findByIdAndUpdate(
+      _id,
+      {
+        status: values.status,
+        fishId: values.fishId,
+        paidDate: values.paidDate,
+        paymentType: values.paymentType,
+      },
+      {new: true}
+    );
   }
 }
-module.exports = new DebtRepository()
+module.exports = new DebtRepository();

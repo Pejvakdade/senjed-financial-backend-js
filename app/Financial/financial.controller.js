@@ -55,8 +55,6 @@ class FinancialController {
     let sumOfCount = 0;
 
     for (let key in driverfactores) {
-      sumOfPrice += driverfactores[key].price;
-
       const foundedService = await this.FinancialService.findServiceById(driverfactores[key].serviceId);
       const foundedFinancialGroup = foundedService.financialGroupSchool;
       const shares = {
@@ -68,9 +66,10 @@ class FinancialController {
       };
 
       sumOfCount += Number(foundedService?.count);
+      const price = foundedService?.price;
 
-      if (req.type === "DRIVER") sumOfPrice = sumOfPrice - (sumOfPrice / 100) * shares.driver;
-      if (req.type === "COMPANY") sumOfPrice = sumOfPrice - ((sumOfPrice / 100) * shares.company + (sumOfPrice / 100) * shares.driver);
+      if (req.type === "DRIVER") sumOfPrice += price - (price / 100) * shares.driver;
+      if (req.type === "COMPANY") sumOfPrice += price - ((price / 100) * shares.company + (price / 100) * shares.driver);
     }
 
     return ResponseHandler.send({
@@ -84,6 +83,8 @@ class FinancialController {
   async payServiceSubscription(req, res) {
     const {serviceId, getway, target} = req.body;
     let {price, count, factorsList} = await factorService.factorPriceByServiceId(serviceId);
+    let transactionPrice = Number(price);
+
     const foundedService = await this.FinancialService.findServiceById(serviceId);
     const foundedFinancialGroup = foundedService.financialGroupSchool;
     const shares = {
@@ -99,8 +100,14 @@ class FinancialController {
       newFactorsList.push(factorsList[i]._id);
     }
 
-    if (req.type === "DRIVER") price = price - (price / 100) * shares.driver;
-    if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver);
+    if (req.type === "DRIVER") {
+      transactionPrice = Number(price);
+      price = price - (price / 100) * shares.driver;
+    }
+    if (req.type === "COMPANY") {
+      transactionPrice = Number(price);
+      price = price - ((price / 100) * shares.company + (price / 100) * shares.driver);
+    }
     const authority = Math.floor(Math.random() * 10000000000);
     const description = `هزینه ${count} ماه ماهیانه سرویس مدارس ${foundedService?.parent?.phoneNumber} ${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`;
     const reason = "SERVICE_SUBSCRIPTION";
@@ -108,7 +115,7 @@ class FinancialController {
     let payLink;
 
     const createdTransaction = await this.TransactionService.createTransaction({
-      amount: price,
+      amount: transactionPrice,
       transactionStatus: "PENDING",
       payerId: req.userId,
       payerType: req.type,
@@ -731,8 +738,8 @@ class FinancialController {
         httpCode: 400,
       });
 
-    if (req.type === "DRIVER") price = price - (price / 100) * shares.driver;
-    if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver);
+    // if (req.type === "DRIVER") price = price - (price / 100) * shares.driver
+    // if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver)
 
     /** @type {number} */
     const authority = Math.floor(Math.random() * 10000000000);
@@ -806,16 +813,15 @@ class FinancialController {
    *
    * @param {any} res
    *
-   * @returns
+   * @returns {Promise<any>}
    */
   async payDriverSubscription(req, res) {
     const {driverId, getway, target} = req.body;
     const driverfactores = await factorService.factorByDriverId(driverId);
-    // const driverServices = await this.FinancialService.findServiceByDriverId(driverId)
 
     if (driverfactores.length <= 0) {
       throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_SERVICE_NOT_FOUND,
+        statusCode: StatusCodes.ERROR_SERVICE_NOT_FOUND, // CODE: 6140
         httpCode: 400,
       });
     }
@@ -829,26 +835,32 @@ class FinancialController {
     let payLink;
 
     for (let key in driverfactores) {
-      sumOfPrice += driverfactores[key].price;
+      let price = driverfactores[key].price;
 
       const foundedService = await this.FinancialService.findServiceById(driverfactores[key].serviceId);
-      const foundedFinancialGroup = foundedService.financialGroupSchool;
-      const shares = {
-        tax: foundedFinancialGroup.subscriptionStudent.share.tax,
-        admin: foundedFinancialGroup.subscriptionStudent.share.admin,
-        driver: foundedFinancialGroup.subscriptionStudent.share.driver,
-        company: foundedFinancialGroup.subscriptionStudent.share.company,
-        superAgent: foundedFinancialGroup.subscriptionStudent.share.superAgent,
-      };
 
-      if (req.type === "DRIVER") sumOfPrice = sumOfPrice - (sumOfPrice / 100) * shares.driver;
-      if (req.type === "COMPANY") sumOfPrice = sumOfPrice - ((sumOfPrice / 100) * shares.company + (sumOfPrice / 100) * shares.driver);
+      const foundedFinancialGroup = foundedService.financialGroupSchool;
+
+      /**
+       * @type {{
+       *  superAgent: number,
+       *  company: number,
+       *  driver: number,
+       *  admin: number,
+       *  tax: number
+       * }}
+       */
+      const shares = foundedFinancialGroup.subscriptionStudent.share;
+
+      if (req.type === "DRIVER") price = price - (price / 100) * shares.driver;
+      if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver);
+      sumOfPrice += price;
       const description = `هزینه ${foundedService?.count} ماه ماهیانه سرویس مدارس ${foundedService?.parent?.phoneNumber} ${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`;
 
       await this.TransactionService.createTransaction({
         city: String(foundedService?.city),
         count: foundedService?.count,
-        amount: driverfactores[key]?.price,
+        amount: price,
         parent: foundedService?.parent?._id,
         school: foundedService?.school,
         driver: driverId,
@@ -927,7 +939,18 @@ class FinancialController {
 
   /**
    * @param {{
-   *    query: {reason:string, target:string, getway:string, respcode:string, transaction:string, authority2:string, authority:string, digitalreceipt:string, Authority:string, Status: string}
+   *    query: {
+   *      reason:string,
+   *      target:string,
+   *      getway:string,
+   *      Status: string,
+   *      respcode:string,
+   *      authority:string,
+   *      Authority:string,
+   *      authority2:string,
+   *      transaction:string,
+   *      digitalreceipt:string,
+   *    }
    * }} req
    * @param {any} res
    */
@@ -962,7 +985,7 @@ class FinancialController {
         });
 
         for (let key in foundedTransactions) {
-          const foundedService = await FinancialService.findServiceById(foundedTransactions.serviceId);
+          const foundedService = await FinancialService.findServiceById(foundedTransactions[key].serviceId);
           if (foundedService.hasFactor) {
             await FinancialService.findServiceByIdAndUpdateHasFactor(String(foundedService._id), false);
           }

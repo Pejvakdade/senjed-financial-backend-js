@@ -1,11 +1,13 @@
-const StatusCodes = require('./StatusCodes')
-const Constant = require('./constants')
-const appRouting = require('./appRouting')
-const Message = require('./message')
+const StatusCodes = require("./StatusCodes");
+const appRouting = require("./appRouting");
+const userRoles = require("./userRoles");
+const Constant = require("./constants");
+const Message = require("./message");
 
 module.exports = {
   StatusCodes,
-  Constant,
   appRouting,
-  Message
-}
+  userRoles,
+  Constant,
+  Message,
+};

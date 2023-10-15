@@ -6,7 +6,7 @@ const FinancialGroupService = require("../FinancialGroup/financialGroup.service"
 const FinancialRepository = require("../Financial/financial.repository");
 const Api = require("../Api");
 const ErrorHandler = require("../Handler/ErrorHandler");
-const {StatusCodes} = require("../Values");
+const {StatusCodes, userRoles} = require("../Values");
 const moment = require("moment");
 
 class DebtService {
@@ -15,6 +15,7 @@ class DebtService {
     this.UtilService = UtilService;
     this.BlockService = BlockService;
     this.TransactionService = TransactionService;
+    this.userRoles = userRoles;
   }
 
   async createDebt({
@@ -77,5 +78,87 @@ class DebtService {
   findDebtPriceForCompany = async (arg) => await this.DebtRepository.findDebtPriceForCompany(arg);
 
   findAllDebtPrice = async (arg) => await this.DebtRepository.findAllDebtPrice(arg);
+
+  /**
+   *
+   * @param {string} debtId
+   * @returns {Promise<import("./debt.model").DebtModel | null>}
+   */
+  findDebtById = async (debtId) => await this.DebtRepository.findDebtById(debtId);
+
+  /**
+   *
+   * @param {string} _id
+   * @param {{fishId: string, paidDate: string, pamentType: "CARD_BY_CARDß" | "POS_MACHINE" |"TRANSFER"}} values
+   * @returns {Promise<import("./debt.model").DebtModel | null>}
+   */
+  async findAndPayDebtById(_id, values) {
+    return await this.DebtRepository.findAndPayDebtById(_id, values);
+  }
+
+  /**
+   * Throws an error if the _id did NOT exist in MongoDB.
+   * @param {string} _id - The _id of Debt to check.
+   * @throws {ErrorHandler} Throws an error if the _id did NOT exist in MongoDB.
+   */
+  async errorIfDebtNotFound(_id) {
+    if (!(await this.DebtRepository.findDebtById(_id))) {
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_DEBT_NOT_FOUND,
+        httpCode: 400,
+        message: `Deby by this _id: ${_id} not found`,
+      });
+    }
+  }
+
+  /**
+   * Throws an error if the user type is not 'ADMIN'.
+   * @param {string} userType - The type of user to check.
+   * @throws {ErrorHandler} Throws an error if the user type is not 'ADMIN'.
+   */
+  errorIfNotAdmin(userType) {
+    if (userType !== this.userRoles.ADMIN) {
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_ONLY_ADMIN,
+        httpCode: 403,
+        message: "Only Admin can call this Module",
+      });
+    }
+  }
+
+  /**
+   * Throws an error if the user type is not 'COMPANY'.
+   * @param {string} userType - The type of user to check.
+   * @throws {ErrorHandler} Throws an error if the user type is not 'COMPANY'.
+   */
+  errorIfNotComapny(userType) {
+    if (userType !== this.userRoles.COMPANY) {
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_ONLY_COMPANY,
+        httpCode: 403,
+        message: "Only company can call this Module",
+      });
+    }
+  }
+
+  /**
+   *
+   * @param {string} _id
+   * @param {"SUCCESS" | "FAILED" | "PENDING"} status
+   * @param {{
+   *    fishId: string,
+   *    paidDate: string,
+   *    paymentType: "CARD_BY_CARD" | "POS_MACHINE" | "TRANSFER",
+   * }} values
+   * @returns {Promise<import("./debt.model").DebtModel | null>}
+   */
+  async findAndPayDebt(_id, values, status = "SUCCESS") {
+    return await this.DebtRepository.findByIdAndUpdateAfterPayment(_id, {
+      status,
+      fishId: values.fishId,
+      paidDate: values.paidDate,
+      paymentType: values.paymentType,
+    });
+  }
 }
 module.exports = new DebtService();

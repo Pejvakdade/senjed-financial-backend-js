@@ -73,11 +73,10 @@ class FactorRepository {
   /**
    * get serviceID from senjed.service and remove un_pade factos
    * @param {string} serviceId
-   * @returns {Promise<boolean>}
+   * @returns {Promise<any>}
    */
   async deleteFactorByServiceId(serviceId) {
-    await Factor.deleteMany({serviceId, status: "UN_PAID"});
-    return true;
+    return await Factor.deleteMany({serviceId, status: "UN_PAID"});
   }
 
   async findServiceBlocks(serviceId) {
