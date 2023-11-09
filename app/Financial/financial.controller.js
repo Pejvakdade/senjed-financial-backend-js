@@ -738,8 +738,8 @@ class FinancialController {
         httpCode: 400,
       });
 
-    // if (req.type === "DRIVER") price = price - (price / 100) * shares.driver
-    // if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver)
+    if (req.type === "DRIVER") price = price - (price / 100) * shares.driver;
+    if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver);
 
     /** @type {number} */
     const authority = Math.floor(Math.random() * 10000000000);
@@ -791,6 +791,127 @@ class FinancialController {
 
     //* PAY OTHER COMMISSION AND ADD SUBSCRIPTION AND SED MESSAGE
     await this.FinancialService.paySubscriptionSuccess({foundedTransaction: createdTransaction});
+    return ResponseHandler.send({
+      res,
+      result: createdTransaction,
+      httpCode: 200,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+    });
+  }
+
+  /**
+   * Company pay service for Driver OR Parent Offline
+   *
+   * @param {{
+   *  type: string,
+   *  userId: string,
+   *  body: {
+   *     factorList: Array<string>, fishId: string, offlinePayType: string
+   *  }
+   * }} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
+  async payFactorsByIdOffline(req, res) {
+    if (req.type !== "COMPANY") {
+      throw new ErrorHandler({
+        statusCode: StatusCodes.AUTH_FAILED,
+        httpCode: 403,
+      });
+    }
+
+    const {factorList, fishId, payerType, offlinePayType} = req.body;
+
+    if (factorList.length <= 0) {
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_FACTOR_NOT_FOUND,
+        httpCode: 400,
+      });
+    }
+
+    let newFactorsList = [];
+    let createdTransaction = [];
+
+    for (let i in factorList) {
+      newFactorsList.push(factorList[i]);
+      const foundedFactor = await factorService.findById(factorList[i]);
+      const foundedService = await this.FinancialService.findServiceById(foundedFactor.serviceId);
+      const foundedFinancialGroup = foundedService.financialGroupSchool;
+      /**
+       * @type {{
+       *  superAgent: number,
+       *  company: number,
+       *  driver: number,
+       *  admin: number,
+       *  tax: number
+       * }}
+       */
+      const shares = {
+        superAgent: foundedFinancialGroup.subscriptionStudent.share.superAgent,
+        company: foundedFinancialGroup.subscriptionStudent.share.company,
+        driver: foundedFinancialGroup.subscriptionStudent.share.driver,
+        admin: foundedFinancialGroup.subscriptionStudent.share.admin,
+        tax: foundedFinancialGroup.subscriptionStudent.share.tax,
+      };
+
+      let {price, count, factorsList} = await factorService.factorPriceByServiceId(foundedFactor.serviceId);
+
+      price = price - ((price / 100) * shares.company + (price / 100) * shares.driver);
+
+      /** @type {number} */
+      const authority = Math.floor(Math.random() * 10000000000);
+      const reason = "SERVICE_SUBSCRIPTION_FROM_WALLET";
+
+      const description = `هزینه ${count} ماه ماهیانه سرویس مدارس از موجودی 0${foundedService?.parent?.phoneNumber} ${foundedService?.student?.firstName} ${foundedService?.student?.lastName} `;
+
+      const transaction = await this.TransactionService.createTransaction({
+        city: String(foundedService?.city),
+        count,
+        fishId,
+        reason,
+        amount: price,
+        parent: foundedService?.parent?._id,
+        school: foundedService?.school,
+        driver: foundedService?.driver,
+        student: foundedService?.student?._id,
+        company: foundedService?.company._id,
+        payerId: req.userId,
+        service: foundedFactor.serviceId,
+        isOnline: false,
+        authority,
+        isDeposit: true,
+        payerType: "COMPANY",
+        superAgent: foundedService?.superAgent,
+        description,
+        factorsList: newFactorsList,
+        isForClient: true,
+        secondParent: foundedService?.secondParent,
+        offlinePayType,
+        payerOriginType: payerType,
+        transactionStatus: "SUCCESS",
+        schoolFinancialGroup: foundedFinancialGroup._id,
+      });
+
+      createdTransaction.push(transaction);
+
+      if (factorsList?.length <= 0) {
+        await FinancialService.updateHasFactorFlag({id: foundedFactor.serviceId, hasFactor: false});
+      }
+
+      await this.FinancialService.findServiceAndUpdateExpaire(foundedFactor.serviceId, foundedService.expire, newFactorsList, foundedService.cycle);
+
+      await this.FinancialService.paySubscriptionSuccess({foundedTransaction: transaction});
+    }
+
+    console.log(newFactorsList);
+
+    // await factorService.changeFactorStatus({
+    //   factorsList: newFactorsList,
+    //   paidBy: req.userId,
+    //   paidDate: new Date(),
+    // });
+
+    //* PAY OTHER COMMISSION AND ADD SUBSCRIPTION AND SED MESSAGE
     return ResponseHandler.send({
       res,
       result: createdTransaction,
@@ -938,6 +1059,160 @@ class FinancialController {
   }
 
   /**
+   *
+   * @param {{
+   *  type: "DRIVER" | "COMPANY",
+   *  userId: string,
+   *  body: {
+   *    driverFactores: Array<string>
+   *    driverId: string,
+   *    getway: string,
+   *    target: string
+   *  }
+   * }} req
+   *
+   * @param {any} res
+   *
+   * @returns {Promise<any>}
+   */
+  async payDriverSubscriptionByFactorIds(req, res) {
+    const {driverId, getway, target, driverFactores} = req.body;
+    console.log({driverId, getway, target, driverFactores});
+    // const driverfactores = await factorService.factorByDriverId(driverId);
+
+    if (driverFactores.length <= 0) {
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_SERVICE_NOT_FOUND, // CODE: 6140
+        httpCode: 400,
+      });
+    }
+
+    let sumOfPrice = 0;
+    const reason = "SERVICE_SUBSCRIPTION";
+    const targetGetway = "REDIRECT_TO_PAY_SERVICE_SUBSCRIPTION_CONTINUE";
+    const authority = Math.floor(Math.random() * 10000000000);
+    const description = "pay factor"; //todo driver name and all sudent name
+
+    let payLink;
+
+    for (let key in driverFactores) {
+      // Todo :: find factorUseid;
+      const foundedFactor = await factorService.findById(driverFactores[key]);
+
+      if (!foundedFactor || foundedFactor.status === "PAID") {
+        throw new ErrorHandler({
+          statusCode: StatusCodes.ERROR_FACTOR_NOT_FOUND, // CODE: 6140
+          httpCode: 400,
+        });
+      }
+
+      let price = foundedFactor.price;
+
+      const foundedService = await this.FinancialService.findServiceById(foundedFactor.serviceId);
+
+      const foundedFinancialGroup = foundedService.financialGroupSchool;
+
+      /**
+       * @type {{
+       *  superAgent: number,
+       *  company: number,
+       *  driver: number,
+       *  admin: number,
+       *  tax: number
+       * }}
+       */
+      const shares = foundedFinancialGroup.subscriptionStudent.share;
+
+      if (req.type === "DRIVER") price = price - (price / 100) * shares.driver;
+      if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver);
+      sumOfPrice += price;
+      const description = `هزینه ${foundedService?.count} ماه ماهیانه سرویس مدارس ${foundedService?.parent?.phoneNumber} ${foundedService?.student?.firstName} ${foundedService?.student?.lastName}`;
+
+      await this.TransactionService.createTransaction({
+        city: String(foundedService?.city),
+        count: foundedService?.count,
+        amount: price,
+        parent: foundedService?.parent?._id,
+        school: foundedService?.school,
+        driver: driverId,
+        getway,
+        reason,
+        target,
+        payerId: req.userId,
+        student: foundedService?.student?._id,
+        company: foundedService?.company._id,
+        service: foundedFactor.serviceId,
+        isOnline: true,
+        isDeposit: true,
+        authority,
+        payerType: req.type,
+        superAgent: foundedService?.superAgent,
+        factorsList: [String(foundedFactor._id)],
+        isForClient: true,
+        description: description,
+        secondParent: foundedService?.secondParent,
+        transactionStatus: "PENDING",
+        schoolFinancialGroup: foundedFinancialGroup._id,
+      });
+    }
+
+    console.log("0");
+    if (getway === "saderat") {
+      console.log("1");
+      const foundedToken = await Api.getTokenSaderat({
+        Amount: Number(sumOfPrice) * 10,
+        Payload: description,
+        invoiceID: authority,
+        terminalID: Constant.SADERAT_TERMINAL_ID,
+        callbackURL: `${process.env.BASE_URL}/api/v1/financial/financial/pay-driver-continues?reason=${reason}&target=${target}&getway=saderat&authority2=${authority}`,
+      });
+      console.log("2");
+      if (foundedToken.Status !== 0) {
+        throw new ErrorHandler({
+          statusCode: StatusCodes.ERROR_SADERAT_TOKEN,
+          httpCode: 400,
+        });
+      }
+      console.log("3");
+
+      await Redis.saveEx(authority, {}, 660);
+
+      payLink = `https://certificateir.ir/api/v1/financial/payment/redirect-saderat?token=${foundedToken.Accesstoken}`;
+
+      // appRouting.REDIRECT_TO_SADERAT_GETWAY({
+      //   token: foundedToken.Accesstoken,
+      // })
+    }
+
+    if (getway === "zarinpal") {
+      const foundedToken = await this.ZarinpalService.request({
+        amount: Number(sumOfPrice) * 10,
+        description,
+        trackingCode: authority,
+        callback_url: `${process.env.BASE_URL}/api/v1/financial/financial/pay-driver-continues?reason=${reason}&target=${target}&getway=zarinpal&authority2=${authority}`,
+      });
+
+      if (!foundedToken) {
+        throw new ErrorHandler({
+          httpCode: 400,
+          statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN,
+        });
+      }
+
+      await Redis.saveEx(authority, {}, 660);
+
+      payLink = `https://www.zarinpal.com/pg/StartPay/${foundedToken}`;
+    }
+
+    return ResponseHandler.send({
+      res,
+      result: {payLink},
+      httpCode: 200,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+    });
+  }
+
+  /**
    * @param {{
    *    query: {
    *      reason:string,
@@ -970,6 +1245,7 @@ class FinancialController {
           digitalreceipt,
           Tid: Constant.SADERAT_TERMINAL_ID,
         });
+
         if (adviceSaderat.Status === "Duplicate" || adviceSaderat.Status === "Ok") status = "SUCCESS";
         else status = "FAILED";
       } else if (getway === "zarinpal") {
@@ -985,14 +1261,35 @@ class FinancialController {
         });
 
         for (let key in foundedTransactions) {
-          const foundedService = await FinancialService.findServiceById(foundedTransactions[key].serviceId);
+          const foundedService = await FinancialService.findServiceById(foundedTransactions[key].service);
           if (foundedService.hasFactor) {
             await FinancialService.findServiceByIdAndUpdateHasFactor(String(foundedService._id), false);
           }
 
+          console.log({
+            _id: foundedService._id,
+            expire: foundedService.expire,
+            factorsList: foundedTransactions[key].factorsList,
+            cycle: foundedService.cycle,
+          });
+
+          // API Service Update expire Date()
+          await this.FinancialService.findServiceAndUpdateExpaire(
+            foundedService._id,
+            foundedService.expire,
+            foundedTransactions[key].factorsList,
+            foundedService.cycle
+          );
+
           await this.FinancialService.chargeWallet({
             id: foundedTransactions[key].payerId,
             amount: foundedTransactions[key].amount,
+          });
+
+          await factorService.changeFactorStatus({
+            factorsList: foundedTransactions[key].factorsList,
+            paidBy: foundedTransactions[key].payerId,
+            paidDate: new Date(),
           });
 
           await this.FinancialService.paySubscriptionSuccess({foundedTransaction: foundedTransactions[key]});

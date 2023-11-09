@@ -73,7 +73,7 @@ class DebtService {
 
   changeDebtStatus = async (arg) => await this.DebtRepository.changeDebtStatus(arg);
 
-  find = async (arg) => await this.DebtRepository.find(arg);
+  findDebt = async (arg) => await this.DebtRepository.findDebt(arg);
 
   findDebtPriceForCompany = async (arg) => await this.DebtRepository.findDebtPriceForCompany(arg);
 
@@ -87,22 +87,12 @@ class DebtService {
   findDebtById = async (debtId) => await this.DebtRepository.findDebtById(debtId);
 
   /**
-   *
-   * @param {string} _id
-   * @param {{fishId: string, paidDate: string, pamentType: "CARD_BY_CARDß" | "POS_MACHINE" |"TRANSFER"}} values
-   * @returns {Promise<import("./debt.model").DebtModel | null>}
-   */
-  async findAndPayDebtById(_id, values) {
-    return await this.DebtRepository.findAndPayDebtById(_id, values);
-  }
-
-  /**
    * Throws an error if the _id did NOT exist in MongoDB.
-   * @param {string} _id - The _id of Debt to check.
+   * @param {import("mongoose").ObjectId} _id - The _id of Debt to check.
    * @throws {ErrorHandler} Throws an error if the _id did NOT exist in MongoDB.
    */
-  async errorIfDebtNotFound(_id) {
-    if (!(await this.DebtRepository.findDebtById(_id))) {
+  async errorIfDebtNotFoundByReceiverId(_id) {
+    if (!(await this.DebtRepository.findDebtByReceiverId(_id))) {
       throw new ErrorHandler({
         statusCode: StatusCodes.ERROR_DEBT_NOT_FOUND,
         httpCode: 400,
@@ -143,7 +133,7 @@ class DebtService {
 
   /**
    *
-   * @param {string} _id
+   * @param {import("mongoose").ObjectId} _id
    * @param {"SUCCESS" | "FAILED" | "PENDING"} status
    * @param {{
    *    fishId: string,
@@ -152,7 +142,10 @@ class DebtService {
    * }} values
    * @returns {Promise<import("./debt.model").DebtModel | null>}
    */
-  async findAndPayDebt(_id, values, status = "SUCCESS") {
+  async findAndPayDebtByReceiverId(_id, values, status = "SUCCESS") {
+    console.log({
+      _id, values
+    })
     return await this.DebtRepository.findByIdAndUpdateAfterPayment(_id, {
       status,
       fishId: values.fishId,

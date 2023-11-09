@@ -1,42 +1,42 @@
-const FinancialGroupService = require("./financialGroup.service")
-const ValidatorService = require("../Handler/Validator.service")
-const { ResponseHandler, ErrorHandler } = require("../Handler")
-const { StatusCodes, Constant } = require("../Values")
-const UtilService = require("../Utils/util.service")
+const FinancialGroupService = require("./financialGroup.service");
+const ValidatorService = require("../Handler/Validator.service");
+const {ResponseHandler, ErrorHandler} = require("../Handler");
+const {StatusCodes, Constant} = require("../Values");
+const UtilService = require("../Utils/util.service");
 
 class FinancialGroupController {
   constructor(financialGroupService, validatorService, utilService) {
-    this.financialGroupService = financialGroupService
-    this.validatorService = validatorService
-    this.utilService = utilService
+    this.financialGroupService = financialGroupService;
+    this.validatorService = validatorService;
+    this.utilService = utilService;
   }
 
   async createFinancialGroup(req, res) {
-    const { agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
+    const {agentSubscription, name, subscriptionStudent, subscriptionAgent} = req.body;
     const result = await this.financialGroupService.createFinancialGroup({
       agentSubscription,
       name,
       subscriptionStudent,
       subscriptionAgent,
-    })
+    });
     return ResponseHandler.send({
       result,
       res,
       statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
       httpCode: 200,
-    })
+    });
   }
 
   async deleteFinancialGroup(req, res) {
-    const { id } = req.params
-    const foundedFinancialGroup = await this.financialGroupService.financialGroupExist(id)
+    const {id} = req.params;
+    const foundedFinancialGroup = await this.financialGroupService.financialGroupExist(id);
     if (foundedFinancialGroup) {
       throw new ErrorHandler({
         statusCode: StatusCodes.ERROR_FINANCIALGROUP_IS_ALREADY_USED,
         httpCode: 400,
-      })
+      });
     } else {
-      await this.financialGroupService.deleteFinancialGroup(id)
+      await this.financialGroupService.deleteFinancialGroup(id);
     }
 
     return ResponseHandler.send({
@@ -44,12 +44,12 @@ class FinancialGroupController {
       res,
       statusCode: StatusCodes.RESPONSE_DELETE,
       httpCode: 200,
-    })
+    });
   }
 
   async updateFinancialGroup(req, res) {
-    const { agentSubscription, name, subscriptionStudent, subscriptionAgent } = req.body
-    const { id } = req.params
+    const {agentSubscription, name, subscriptionStudent, subscriptionAgent} = req.body;
+    const {id} = req.params;
     // await this.validatorService.validMongooseId(id)
 
     const result = await this.financialGroupService.updateFinancialGroup({
@@ -58,40 +58,51 @@ class FinancialGroupController {
       name,
       subscriptionStudent,
       subscriptionAgent,
-    })
+    });
     return ResponseHandler.send({
       res,
       statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
       httpCode: 200,
       result,
-    })
+    });
   }
 
   async findFinancialGroup(req, res) {
-    const { page, limit, type } = req.body
-    let query = { $and: [] }
-    if (type) query.$and.push({ type })
+    const {page, limit, type} = req.body;
+    let query = {$and: []};
+    if (type) query.$and.push({type});
 
-    query = query.$and.length < 1 ? null : query
-    const result = await this.financialGroupService.findFinancialGroup({ query, page, limit })
+    query = query.$and.length < 1 ? null : query;
+    const result = await this.financialGroupService.findFinancialGroup({query, page, limit});
 
     return ResponseHandler.send({
       res,
       statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
       httpCode: 200,
       result,
-    })
+    });
   }
 
   async hasSubscription(req, res) {
-    const { id } = req.params
-    const result = await this.financialGroupService.hasSubscription(id)
+    const {id} = req.params;
+    const result = await this.financialGroupService.hasSubscription(id);
     return ResponseHandler.send({
       res,
       statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
       httpCode: 200,
       result,
-    })
+    });
+  }
+
+  async findFinancialGroupById(req, res) {
+    const {id} = req.params;
+    const result = await this.financialGroupService.findById(id);
+    return ResponseHandler.send({
+      res,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+      httpCode: 200,
+      result,
+    });
   }
 }
-module.exports = new FinancialGroupController(FinancialGroupService, ValidatorService, UtilService)
+module.exports = new FinancialGroupController(FinancialGroupService, ValidatorService, UtilService);

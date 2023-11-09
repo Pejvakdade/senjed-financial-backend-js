@@ -8,6 +8,14 @@ class FactorRepository {
     return await Service.findById(serviceId);
   };
 
+  /**
+   * @param {import("mongoose").ObjectId} _id
+   * @returns {Promise<any>}
+   */
+  async findById(_id) {
+    return await Factor.findById(_id);
+  }
+
   createFactor = async ({price, serviceId, parent, secondParent, student, driver, company, oldSubscriptionDate, newSubscriptionDate}) => {
     const result = await Factor({
       price,
@@ -67,7 +75,7 @@ class FactorRepository {
   }
 
   async findFactorByDriverId(driverId) {
-    return await Factor.find({driver: driverId, status: "UN_PAID"}).lean();
+    return await Factor.find({driver: driverId, status: "UN_PAID"}).populate("parent student serviceId serviceId").lean();
   }
 
   /**
@@ -77,6 +85,24 @@ class FactorRepository {
    */
   async deleteFactorByServiceId(serviceId) {
     return await Factor.deleteMany({serviceId, status: "UN_PAID"});
+  }
+
+  /**
+   * get Company._id from panel and Find() un_pade factos
+   * @param {{_id: string, page: number, limit: number}} param0
+   * @returns {Promise<any>}
+   */
+  async findByCompanyId({_id, page, limit}) {
+    if (limit)
+      return await Factor.paginate(
+        {company: _id, status: "UN_PAID"},
+        {
+          limit,
+          page,
+          populate: "serviceId student driver",
+        }
+      );
+    else return await Factor.find({company: _id, status: "UN_PAID"}).populate("serviceId student driver").lean();
   }
 
   async findServiceBlocks(serviceId) {

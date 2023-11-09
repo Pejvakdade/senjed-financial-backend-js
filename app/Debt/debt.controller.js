@@ -1,4 +1,3 @@
-const DebtRepository = require("./debt.repository");
 const DebtService = require("./debt.service");
 
 const {ResponseHandler, ErrorHandler} = require("../Handler");
@@ -19,48 +18,39 @@ class DebtController {
     let {page, limit, populate, status, reason, receiverId, receiverType, superAgent, driver, student, service, company, city, amount, search} =
       req.body;
 
+    /** @type {{ $and: any[] } | null} */
     let query = {$and: []};
 
-    if (req.type === "DRIVER") {
-      query.$and.push({driver: req.userId});
-    }
-    if (req.type === "COMPANY") {
-      query.$and.push({company: req.userId});
-    }
-    if (req.type === "SUPER_AGENT_SCHOOL") {
-      query.$and.push({superAgent: req.userId});
-    }
+    if (req.type === "DRIVER") query.$and.push({driver: req.userId});
+    if (req.type === "COMPANY") query.$and.push({company: req.userId});
+    if (req.type === "SUPER_AGENT_SCHOOL") query.$and.push({superAgent: req.userId});
 
+    if (city) query.$and.push({city});
     if (status) query.$and.push({status});
     if (reason) query.$and.push({reason});
-    if (receiverId) query.$and.push({receiverId});
-    if (receiverType) query.$and.push({receiverType});
-    if (superAgent) query.$and.push({superAgent});
-    if (parent) query.$and.push({parent});
-    if (school) query.$and.push({school});
+    if (amount) query.$and.push({amount});
     if (driver) query.$and.push({driver});
     if (student) query.$and.push({student});
     if (company) query.$and.push({company});
     if (service) query.$and.push({service});
-    if (amount) query.$and.push({amount});
-    if (city) query.$and.push({city});
+    if (superAgent) query.$and.push({superAgent});
+    if (receiverId) query.$and.push({receiverId});
+    if (receiverType) query.$and.push({receiverType});
 
     if (search) {
       switch (search.searchMode) {
         case "description":
           query.$and.push({description: {$regex: search.searchValue}});
           break;
-
         case "trackingCode":
           query.$and.push({trackingCode: {$regex: search.searchValue}});
           break;
-
         default:
           break;
       }
     }
     query = query.$and.length < 1 ? null : query;
-    const result = await this.DebtController.find({
+    const result = await this.DebtService.findDebt({
       populate,
       query,
       limit,
@@ -112,16 +102,16 @@ class DebtController {
       query.$and.push({superAgent: mongoose.Types.ObjectId(String(req.userId))});
     }
 
+    if (city) query.$and.push({city: mongoose.Types.ObjectId(String(city))});
     if (status) query.$and.push({status});
     if (reason) query.$and.push({reason});
-    if (receiverId) query.$and.push({receiverId: mongoose.Types.ObjectId(String(receiverId))});
-    if (receiverType) query.$and.push({receiverType});
-    if (superAgent) query.$and.push({superAgent: mongoose.Types.ObjectId(String(superAgent))});
     if (driver) query.$and.push({driver: mongoose.Types.ObjectId(String(driver))});
     if (student) query.$and.push({student: mongoose.Types.ObjectId(String(student))});
     if (company) query.$and.push({company: mongoose.Types.ObjectId(String(company))});
     if (service) query.$and.push({service: mongoose.Types.ObjectId(String(service))});
-    if (city) query.$and.push({city: mongoose.Types.ObjectId(String(city))});
+    if (superAgent) query.$and.push({superAgent: mongoose.Types.ObjectId(String(superAgent))});
+    if (receiverId) query.$and.push({receiverId: mongoose.Types.ObjectId(String(receiverId))});
+    if (receiverType) query.$and.push({receiverType});
 
     query = query.$and.length < 1 ? null : query;
     const result = await this.DebtService.findAllDebtPrice({
@@ -142,7 +132,7 @@ class DebtController {
    * @param {{
    *    type: string,
    *    userId: string,
-   *    params: {_id: string},
+   *    params: {_id: import("mongoose").ObjectId},
    *    body: {
    *      fishId: string,
    *      paidDate: string,
@@ -153,13 +143,13 @@ class DebtController {
    * @returns {Promise<Object>}
    */
   async payDebtByAdmin(req, res) {
-    const {_id} = req.params;
+    const {_id} = req.params; // company_id
     const requestBody = req.body;
 
     this.DebtService.errorIfNotAdmin(req.type);
-    await this.DebtService.errorIfDebtNotFound(_id);
+    await this.DebtService.errorIfDebtNotFoundByReceiverId(_id);
 
-    const result = await this.DebtService.findAndPayDebt(_id, requestBody);
+    const result = await this.DebtService.findAndPayDebtByReceiverId(_id, requestBody);
 
     return ResponseHandler.send({
       res,
@@ -176,7 +166,7 @@ class DebtController {
    * @param {{
    *    type: string,
    *    userId: string,
-   *    params: {_id: string},
+   *    params: {_id: import("mongoose").ObjectId},
    *    body: {
    *      fishId: string,
    *      paidDate: string,
@@ -191,9 +181,9 @@ class DebtController {
     const requestBody = req.body;
 
     this.DebtService.errorIfNotComapny(req.type);
-    await this.DebtService.errorIfDebtNotFound(_id);
+    await this.DebtService.errorIfDebtNotFoundByReceiverId(_id);
 
-    const result = await this.DebtService.findAndPayDebt(_id, requestBody);
+    const result = await this.DebtService.findAndPayDebtByReceiverId(_id, requestBody);
 
     return ResponseHandler.send({
       res,

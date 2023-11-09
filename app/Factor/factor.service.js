@@ -138,8 +138,14 @@ class FactorService {
     }
   }
 
+  findById = async (arg) => await this.FactorRepository.findById(arg);
+
+  payFactorById = async (arg) => await this.FactorRepository.payFactorById(arg);
+
   changeFactorStatus = async (arg) => await this.FactorRepository.changeFactorStatus(arg);
 
   deleteFactorByServiceId = async (arg) => await this.FactorRepository.deleteFactorByServiceId(arg);
+
+  findByCompanyId = async (arg) => await this.FactorRepository.findByCompanyId(arg);
 }
 module.exports = new FactorService();

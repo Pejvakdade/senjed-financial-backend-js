@@ -42,6 +42,11 @@ class FinancialGroupService {
     return result
   }
 
+  async findById(name) {
+    const result = await this.financialGroupRepository.findById(name)
+    return result
+  }
+
   async hasSubscription(id) {
     const result = await this.financialGroupRepository.hasSubscription(id)
     return result

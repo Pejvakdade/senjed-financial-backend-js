@@ -6,8 +6,19 @@ const moment = require("moment");
 class FinancialRepository {
   constructor() {}
   findServiceById = async (serviceId) => {
-    return await Service.findById(serviceId).populate("student driver parent financialGroupSchool company").lean();
+    const result = await Service.findById(serviceId).populate("student driver parent financialGroupSchool company").lean();
+    return result;
   };
+
+  /**
+   *
+   * @param {string} _id
+   * @param {any} expire
+   * @param {Array<any>} factorList
+   */
+  async findServiceAndUpdateExpaire(_id, expire) {
+    await Service.findByIdAndUpdate(_id, {expire});
+  }
 
   /**
    * @param {string} serviceId
@@ -106,10 +117,5 @@ class FinancialRepository {
     const user = await User.findById(id);
     return user?.companyInformation?.profitBalance >= amount;
   }
-
-  // async transferToMainBalnceForCompany({ id, amount }) {
-  //   await User.findByIdAndUpdate(id, { $inc: { "companyInformation.profitBalance": -amount } }, { new: true })
-  //   return await User.findByIdAndUpdate(id, { $inc: { balance: amount } }, { new: true })
-  // }
 }
 module.exports = new FinancialRepository();

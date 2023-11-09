@@ -47,5 +47,22 @@ class FactorController {
       result,
     });
   }
+
+  /**
+   *
+   * @param {{body: {_id: string, page: number, limit: number}}} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
+  async findByCompanyId(req, res) {
+    const {_id, page, limit} = req.body;
+    const result = await this.factorService.findByCompanyId({_id, page, limit});
+    return ResponseHandler.send({
+      res,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+      httpCode: 200,
+      result,
+    });
+  }
 }
 module.exports = new FactorController(FactorService, ValidatorService, UtilService);

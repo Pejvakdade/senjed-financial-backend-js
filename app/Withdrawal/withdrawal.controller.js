@@ -6,7 +6,7 @@ const ErrorHandler = require("../Handler/ErrorHandler");
 const mongoose = require("mongoose");
 
 class WithdrawalController {
-  constructor() {
+  constructor(WithdrawalService, TransactionService) {
     this.WithdrawalService = WithdrawalService;
     this.TransactionService = TransactionService;
   }
@@ -136,37 +136,57 @@ class WithdrawalController {
   //   })
   // }
 
+  /**
+   * @param {{
+   *    type: string,
+   *    body: {
+   *      withdrawalId: string,
+   *      description: string,
+   *      paymentType: string,
+   *      bankName: string,
+   *      shabaId: string,
+   *      bankId: string,
+   *      fishId: string,
+   *      date: string,
+   *    }
+   * }} req
+   * @param {any} res
+   * @returns {Promise<any>}
+   */
   async acc(req, res) {
-    let result;
-    if (req.type === "ADMIN") {
-      let {withdrawalId, description, shabaId, bankId, bankName} = req.body;
-      const foundedWithrawal = await this.WithdrawalService.findWithrawalById(withdrawalId);
-      if (foundedWithrawal.status !== "PENDING")
-        throw new ErrorHandler({
-          statusCode: StatusCodes.ERROR_WITHDRAWAL_STATUS_NOT_PENDING,
-          httpCode: 400,
-        });
-      result = await this.WithdrawalService.updateWithrawal({withdrawalId, status: "SUCCESS", description, shabaId, bankId, bankName});
-      await this.TransactionService.createTransaction({
-        receiverId: foundedWithrawal?.userId,
-        receiverType: foundedWithrawal?.type,
-        amount: foundedWithrawal.amount,
-        transactionStatus: "SUCCESS",
-        driver: foundedWithrawal?.driver,
-        company: foundedWithrawal?.company,
-        superAgent: foundedWithrawal?.superAgent,
-        reason: "WITHDRAWAL",
-        description,
-        isOnline: false,
-        isDeposit: false,
-        city: foundedWithrawal?.city,
-        withdrawalId,
-      }); //todo send sms
-    } else
-      throw new ErrorHandler({
-        statusCode: StatusCodes.AUTH_FAILED,
-        httpCode: 403,
-      });
+    const {withdrawalId} = req.body;
+    const requestBody = req.body;
+
+    this.WithdrawalService.throwErrorIfNotAdmin(req.type);
+    await this.WithdrawalService.throwErrorIfWithdrawalNotFoundOrNotPending(withdrawalId);
+
+    /** @type {any} */
+    const result = await this.WithdrawalService.updateWithrawal(withdrawalId, {
+      status: "SUCCESS",
+      ...requestBody,
+    });
+
+    /** @type {any} */
+    const foundedWithrawal = this.WithdrawalService.findWithrawalById(withdrawalId);
+
+    await this.TransactionService.createTransaction({
+      city: foundedWithrawal?.city,
+      amount: foundedWithrawal?.amount,
+      driver: foundedWithrawal?.driver,
+      reason: "WITHDRAWAL",
+      company: foundedWithrawal?.company,
+      isOnline: false,
+      isDeposit: false,
+      superAgent: foundedWithrawal?.superAgent,
+      receiverId: foundedWithrawal?.userId,
+      description: requestBody.description,
+      withdrawalId,
+      receiverType: foundedWithrawal?.type,
+      transactionStatus: "SUCCESS",
+    });
+
+    // TODO Send <SMS>
+
     return ResponseHandler.send({
       res,
       statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
@@ -310,6 +330,68 @@ class WithdrawalController {
       result: {doc: result, page, limit},
     });
   }
+
+  /**
+   * @param {{
+   *  type: string;
+   *  params: {_id: string},
+   * }} req
+   * @param {any} res
+   * @returns {Promise<void>}
+   */
+  async findByUserId(req, res) {
+    const {_id} = req.params;
+
+    if (!_id) {
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_PARAM,
+        httpCode: 400,
+      });
+    }
+
+    this.WithdrawalService.throwErrorIfNotAdmin(req.type);
+
+    return ResponseHandler.send({
+      res,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+      httpCode: 200,
+      result: await this.WithdrawalService.findWithDrawalWithUserIdIfIsPending(_id),
+    });
+  }
+
+  /**
+   * @param {{
+   *  type: string;
+   *  params: {_id: import("mongoose").ObjectId},
+   *  body: {
+   *     fishId: string,
+   *     paidDate: string,
+   *     paymentType: "CARD_BY_CARD" | "POS_MACHINE" | "TRANSFER",
+   *   }
+   * }} req
+   * @param {any} res
+   * @returns {Promise<void>}
+   */
+  async findByUserIdAndPay(req, res) {
+    const {_id} = req.params;
+    const requestBody = req.body;
+
+    if (!_id) {
+      throw new ErrorHandler({
+        statusCode: StatusCodes.ERROR_PARAM,
+        httpCode: 400,
+      });
+    }
+
+    this.WithdrawalService.throwErrorIfNotAdmin(req.type);
+
+    return ResponseHandler.send({
+      res,
+      statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
+      httpCode: 200,
+      result: await this.WithdrawalService.findWithDrawalWithUserIdAndPayIfIsPending(_id, requestBody),
+    });
+  }
 }
 
-module.exports = new WithdrawalController();
+module.exports = new WithdrawalController(WithdrawalService, TransactionService);

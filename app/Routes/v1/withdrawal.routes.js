@@ -1,19 +1,24 @@
-const express = require("express")
-const { WithdrawalController } = require("../../Withdrawal")
+const {Auth} = require("../../Middleware");
+const {WithdrawalController} = require("../../Withdrawal");
 
-const router = express.Router()
-const { Auth } = require("../../Middleware")
+const express = require("express");
+const router = express.Router();
 
 const use = (fn) => (req, res, next) => {
-  Promise.resolve(fn(req, res, next)).catch(next)
-}
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
 
-router.post("/request", Auth, use(WithdrawalController.request.bind(WithdrawalController)))
-// router.post("/company/request-from-profit", Auth, use(WithdrawalController.requestFromProfit.bind(WithdrawalController)))
+// GET
+router.get("/find-by-userId/:_id", Auth, use(WithdrawalController.findByUserId.bind(WithdrawalController)));
 
-router.put("/accept", Auth, use(WithdrawalController.acc.bind(WithdrawalController)))
-router.put("/reject", Auth, use(WithdrawalController.reject.bind(WithdrawalController)))
-router.post("/find", Auth, use(WithdrawalController.find.bind(WithdrawalController)))
-router.post("/find-need-pay", Auth, use(WithdrawalController.findNeedPay.bind(WithdrawalController)))
+// PUT
+router.put("/accept", Auth, use(WithdrawalController.acc.bind(WithdrawalController)));
+router.put("/reject", Auth, use(WithdrawalController.reject.bind(WithdrawalController)));
+router.put("/pay-by-userId/:_id", Auth, use(WithdrawalController.findByUserIdAndPay.bind(WithdrawalController)));
 
-module.exports = router
+// POST
+router.post("/find", Auth, use(WithdrawalController.find.bind(WithdrawalController)));
+router.post("/request", Auth, use(WithdrawalController.request.bind(WithdrawalController)));
+router.post("/find-need-pay", Auth, use(WithdrawalController.findNeedPay.bind(WithdrawalController)));
+
+module.exports = router;

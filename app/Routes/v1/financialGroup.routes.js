@@ -1,18 +1,23 @@
-const express = require("express")
-const FinancialGroupController = require("../../FinancialGroup/financialGroup.controller")
-const router = express.Router()
-const Heimdall = require("../../Middleware/")
+const FinancialGroupController = require("../../FinancialGroup/financialGroup.controller");
+
+const express = require("express");
+const router = express.Router();
 
 const use = (fn) => (req, res, next) => {
-  Promise.resolve(fn(req, res, next)).catch(next)
-}
-router.post("/", use(FinancialGroupController.createFinancialGroup.bind(FinancialGroupController)))
-router.put("/:id", use(FinancialGroupController.updateFinancialGroup.bind(FinancialGroupController)))
-router.delete("/:id", use(FinancialGroupController.deleteFinancialGroup.bind(FinancialGroupController)))
-router.post("/find/", use(FinancialGroupController.findFinancialGroup.bind(FinancialGroupController)))
-// router.put('/:id', Heimdall, use(FinancialGroupController.updateFinancialGroup.bind(FinancialGroupController)))
-// router.get('/', Heimdall, use(FinancialGroupController.getFinancialGroup.bind(FinancialGroupController)))
-// router.get('/:id', use(FinancialGroupController.getFinancialGroupById.bind(FinancialGroupController)))
-// router.post('/subscription/:id', Heimdall, use(FinancialGroupController.hasSubscription.bind(FinancialGroupController)))
+  Promise.resolve(fn(req, res, next)).catch(next);
+};
 
-module.exports = router
+// GET
+router.get("/:id", use(FinancialGroupController.findFinancialGroupById.bind(FinancialGroupController)));
+
+// PUT
+router.put("/:id", use(FinancialGroupController.updateFinancialGroup.bind(FinancialGroupController)));
+
+// POST
+router.post("/", use(FinancialGroupController.createFinancialGroup.bind(FinancialGroupController)));
+router.post("/find/", use(FinancialGroupController.findFinancialGroup.bind(FinancialGroupController)));
+
+// DELETE
+router.delete("/:id", use(FinancialGroupController.deleteFinancialGroup.bind(FinancialGroupController)));
+
+module.exports = router;

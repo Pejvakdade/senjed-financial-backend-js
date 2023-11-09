@@ -4,6 +4,7 @@ const FactorService = require("../Factor/factor.service");
 const WithdrawalService = require("../Withdrawal/withdrawal.service");
 const DebtService = require("../Debt/debt.service");
 const FactorRepository = require("../Factor/factor.repository");
+const moment = require("moment");
 
 const TransactionRepository = require("../Transaction/transaction.repository");
 const UtilService = require("../Utils/util.service");
@@ -116,6 +117,8 @@ class FinancialService {
     const foundedCommissionManagerSchoolId = await this.FinancialRepository.findCommissionManagerSchoolId();
     const foundedBankSchoolId = await this.FinancialRepository.findBankSchoolId();
     const foundedTaxId = await this.FinancialRepository.findTaxId();
+
+    const calculateOnePersent = foundedTransaction.amount / 100;
 
     switch (foundedTransaction.payerType) {
       case "PASSENGER":
@@ -336,15 +339,13 @@ class FinancialService {
         // })
         console.log({beforeChangeAmount: foundedTransaction.amount});
 
-        const calculateOnePersent = foundedTransaction.amount / 100;
-
         await this.FinancialRepository.chargeWallet({
           id: foundedTransaction.payerId,
           amount: -(calculateOnePersent * shares.driver),
         });
         console.log({calculateOnePersent});
         // COMMISSION_MANAGER_SCHOOL
-        console.log("COMMISSION_MANAGER_SCHOOL");
+
         console.log({poliKeAzDriverKamMishe: foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100});
         await this.internalMoneyTransfer({
           reason: "SERVICE_SUBSCRIPTION_COMMISSION",
@@ -438,8 +439,6 @@ class FinancialService {
 
         //!check pay offline or online
         if (foundedTransaction?.payerOriginType === "DRIVER" || foundedTransaction?.payerOriginType === "PASSENGER") {
-          const calculateOnePersent = foundedTransaction.amount / 100;
-
           // foundedTransaction.amount - ((foundedTransaction.amount / 100) * shares.company + (foundedTransaction.amount / 100) * shares.driver)
           const checkWallet = await this.FinancialRepository.checkWallet({
             id: foundedTransaction.payerId,
@@ -651,6 +650,7 @@ class FinancialService {
             id: foundedTransaction.payerId,
             amount: -(calculateOnePersent * shares.company + calculateOnePersent * shares.driver),
           });
+
           // COMMISSION_MANAGER_SCHOOL
           await this.internalMoneyTransfer({
             reason: "SERVICE_SUBSCRIPTION_COMMISSION",
@@ -707,8 +707,8 @@ class FinancialService {
     return true;
   }
 
-  async findServiceById(serviceId) {
-    return await this.FinancialRepository.findServiceById(serviceId);
+  async findServiceById(serviceId, populate) {
+    return await this.FinancialRepository.findServiceById(serviceId, populate);
   }
 
   /**
@@ -744,6 +744,21 @@ class FinancialService {
       return isForCompanyProfit === true
         ? await this.FinancialRepository.chargeWalletCompany({id, amount})
         : await this.FinancialRepository.chargeWallet({id, amount});
+  }
+
+  /**
+   *
+   * @param {string} _id
+   * @param {Date} expire
+   * @param {Array<any>} factorList
+   * @param {number} cycle
+   */
+  async findServiceAndUpdateExpaire(_id, expire, factorList, cycle) {
+    console.log("==============================");
+    console.log(factorList.length * cycle);
+    console.log("==============================");
+    const updatedExpire = moment(expire).add(factorList.length * cycle, "days");
+    await this.FinancialRepository.findServiceAndUpdateExpaire(_id, updatedExpire);
   }
 }
 module.exports = new FinancialService();

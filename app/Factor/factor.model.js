@@ -23,4 +23,5 @@ const factorModel = new mongoose.Schema(
   { timestamps: true }
 )
 factorModel.plugin(mongoosePaginate)
+
 module.exports = mongoose.model("Factor", factorModel)

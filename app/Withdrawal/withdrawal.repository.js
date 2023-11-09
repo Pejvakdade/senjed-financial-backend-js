@@ -10,12 +10,43 @@ class WithdrawalRepository {
     return await User.findById(userId);
   };
 
+  /**
+   * @param {import("mongoose").ObjectId} id
+   * @returns {Promise<import("mongoose").AggregatePaginateModel<any> | null>}
+   */
   findWithrawalById = async (id) => {
     return await Withdrawal.findById(id);
   };
 
-  updateWithrawal = async ({withdrawalId, status, description, shabaId, bankId, bankName}) => {
-    return await Withdrawal.findByIdAndUpdate(withdrawalId, {status, description, shabaId, bankId, bankName}, {new: true});
+  /**
+   * @param {string} _id
+   * @param {{
+   *    date: string,
+   *    status: "SUCCESS" | "REJECT" | "PENDING",
+   *    bankId: string,
+   *    fishId: string,
+   *    shabaId: string,
+   *    bankName: string
+   *    description: string,
+   *    paymentType: string,
+   * }} values
+   * @returns {Promise<any>}
+   */
+  updateWithrawal = async (_id, values) => {
+    return await Withdrawal.findByIdAndUpdate(
+      _id,
+      {
+        status: values.status,
+        bankId: values.bankId,
+        shabaId: values.shabaId,
+        bankName: values.bankName,
+        description: values.description,
+        "paidData.date": values.date,
+        "paidData.fishId": values.fishId,
+        "paidData.paymentType": values.paymentType,
+      },
+      {new: true}
+    );
   };
 
   async checkWallet({id, amount}) {
@@ -83,6 +114,7 @@ class WithdrawalRepository {
   async find({query, limit, page, populate, sort}) {
     return await Withdrawal.paginate(query, {limit, page, lean: true, sort, populate});
   }
+
   async findNeedPay({query, limit = 10, page = 1}) {
     const result = await Withdrawal.aggregate([
       {
@@ -116,6 +148,35 @@ class WithdrawalRepository {
 
     return paginatedResult;
     // return result
+  }
+
+  async findWithDrawalWithUserIdIfIsPending(_id) {
+    return await Withdrawal.find({userId: _id, status: "PENDING"});
+  }
+
+  /**
+   * @param {import("mongoose").ObjectId} _id
+   * @param {{
+   *  fishId: string,
+   *  paidDate: string,
+   *  paymentType: "CARD_BY_CARD" | "POS_MACHINE" | "TRANSFER",
+   * }} requestBody
+   * @returns {Promise<any>}
+   */
+  async findWithDrawalWithUserIdAndPayIfIsPending(_id, requestBody) {
+    return await Withdrawal.updateMany(
+      {userId: _id, status: "PENDING"},
+      {
+        $set: {
+          status: "SUCCESS",
+          paidData: {
+            date: requestBody.paidDate,
+            fishId: requestBody.fishId,
+            paymentType: requestBody.paymentType,
+          },
+        },
+      }
+    );
   }
 }
 module.exports = new WithdrawalRepository();
