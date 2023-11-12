@@ -18,20 +18,11 @@ class WithdrawalController {
     let name = `${foundedUser.firstName} ${foundedUser.lastName}`;
     const isBalanceEnough = await this.WithdrawalService.checkWallet({id: req.userId, amount});
     if (isBalanceEnough == false)
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE,
-        httpCode: 400,
-      });
+      return res.status(400).json({ statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE, })
     if (amount < Number(process.env.MIN_AMOUNT_WITHDRAWAL))
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_MIN_WITHDRAWAL,
-        httpCode: 400,
-      });
+      return res.status(400).json({ statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_MIN_WITHDRAWAL, })
     else if (amount > Number(process.env.MAX_AMOUNT_WITHDRAWAL)) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_MORE_THAN_MAX_WITHDRAWAL,
-        httpCode: 400,
-      });
+      return res.status(400).json({ statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_MORE_THAN_MAX_WITHDRAWAL, })
     }
     await this.WithdrawalService.changeWallet({id: req.userId, amount: -amount});
     let superAgent, driver, company, city, province;
@@ -201,20 +192,15 @@ class WithdrawalController {
       let {withdrawalId, description} = req.body;
       const foundedWithrawal = await this.WithdrawalService.findWithrawalById(withdrawalId);
       if (foundedWithrawal.status !== "PENDING")
-        throw new ErrorHandler({
-          statusCode: StatusCodes.ERROR_WITHDRAWAL_STATUS_NOT_PENDING,
-          httpCode: 400,
-        });
+        return res.status(400).json({ CODE: StatusCodes.ERROR_WITHDRAWAL_STATUS_NOT_PENDING })
       result = await this.WithdrawalService.updateWithrawal({withdrawalId, status: "REJECT", description});
       if (foundedWithrawal?.type !== "COMPANY")
         await this.WithdrawalService.changeWallet({id: foundedWithrawal.userId, amount: Number(foundedWithrawal.amount)});
 
       //todo send sms
     } else
-      throw new ErrorHandler({
-        statusCode: StatusCodes.AUTH_FAILED,
-        httpCode: 403,
-      });
+      return res.status(403).json({ CODE: StatusCodes.AUTH_FAILED })
+
     return ResponseHandler.send({
       res,
       statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
@@ -343,10 +329,7 @@ class WithdrawalController {
     const {_id} = req.params;
 
     if (!_id) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_PARAM,
-        httpCode: 400,
-      });
+      return res.status(400).json({ statusCode: StatusCodes.ERROR_PARAM });
     }
 
     this.WithdrawalService.throwErrorIfNotAdmin(req.type);
@@ -377,10 +360,7 @@ class WithdrawalController {
     const requestBody = req.body;
 
     if (!_id) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_PARAM,
-        httpCode: 400,
-      });
+      return res.status(400).json({ statusCode: StatusCodes.ERROR_PARAM });
     }
 
     this.WithdrawalService.throwErrorIfNotAdmin(req.type);

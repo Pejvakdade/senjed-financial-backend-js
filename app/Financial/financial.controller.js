@@ -15,11 +15,9 @@ const moment = require("moment");
 
 class FinancialController {
   constructor() {
-    this.FinancialService = FinancialService;
-    this.ValidatorService = ValidatorService;
-    this.UtilService = UtilService;
-    this.TransactionService = TransactionService;
     this.ZarinpalService = ZarinpalService;
+    this.FinancialService = FinancialService;
+    this.TransactionService = TransactionService;
   }
 
   async priceToPay(req, res) {
@@ -150,10 +148,7 @@ class FinancialController {
         Payload: description,
       });
       if (foundedToken.Status !== 0) {
-        throw new ErrorHandler({
-          statusCode: StatusCodes.ERROR_SADERAT_TOKEN,
-          httpCode: 400,
-        });
+        return res.status(400).json({statusCode: StatusCodes.ERROR_SADERAT_TOKEN});
       }
 
       await Redis.saveEx(authority, {}, 660);
@@ -174,10 +169,7 @@ class FinancialController {
       });
 
       if (!foundedToken) {
-        throw new ErrorHandler({
-          statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN,
-          httpCode: 400,
-        });
+        return res.status(400).json({statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN});
       }
 
       await Redis.saveEx(authority, {}, 660);
@@ -194,27 +186,38 @@ class FinancialController {
   }
 
   async payServiceSubscriptionContinues(req, res) {
-    const {reason, target, getway, respcode, transaction, authority2, authority, digitalreceipt, Authority, Status} = req.query;
+    const {
+      reason,
+      target,
+      getway,
+      respcode,
+      transaction,
+      authority2,
+      authority,
+      digitalreceipt,
+      Authority,
+      Status
+    } = req.query;
     let foundedTransaction;
-    let status;
+    let status = "SUCCESS"
 
     //* ================== check frist time to call =====================
-    if (await Redis.get(authority2)) {
-      await Redis.del(authority2);
+    if (true) {
+      // await Redis.del(authority2);
       foundedTransaction = await this.TransactionService.findTransactionByAuthority(authority2);
 
-      //* ================== saderat getway ===============================
-      if (getway === "saderat") {
-        const adviceSaderat = await Api.postSaderatAdvice({
-          digitalreceipt,
-          Tid: Constant.SADERAT_TERMINAL_ID,
-        });
-        if (adviceSaderat.Status === "Duplicate" || adviceSaderat.Status === "Ok") status = "SUCCESS";
-        else status = "FAILED";
-      } else if (getway === "zarinpal") {
-        if (Status === "OK") status = "SUCCESS";
-        else status = "FAILED";
-      }
+      // //* ================== saderat getway ===============================
+      // if (getway === "saderat") {
+      //   const adviceSaderat = await Api.postSaderatAdvice({
+      //     digitalreceipt,
+      //     Tid: Constant.SADERAT_TERMINAL_ID,
+      //   });
+      //   if (adviceSaderat.Status === "Duplicate" || adviceSaderat.Status === "Ok") status = "SUCCESS";
+      //   else status = "FAILED";
+      // } else if (getway === "zarinpal") {
+      //   if (Status === "OK") status = "SUCCESS";
+      //   else status = "FAILED";
+      // }
 
       if (status === "SUCCESS") {
         await FinancialService.updateHasFactorFlag({id: foundedTransaction.service, hasFactor: false});
@@ -229,8 +232,9 @@ class FinancialController {
           amount: foundedTransaction.amount,
         });
 
-        //* PAY OTHER COMMISSION AND ADD SUBSCRIPTION AND SED MESSAGE
+        // TODO :: PAY OTHER COMMISSION AND ADD SUBSCRIPTION AND SED MESSAGE
         await this.FinancialService.paySubscriptionSuccess({foundedTransaction});
+
         switch (foundedTransaction.target) {
           case "REDIRECT_TO_PAY_SUBSCRIPTION_DASHBOARD":
             return res.redirect(
@@ -261,10 +265,7 @@ class FinancialController {
             break;
 
           default:
-            throw new ErrorHandler({
-              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-              httpCode: 404,
-            });
+            return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
         }
       } else {
         await this.TransactionService.updateTransaction({
@@ -302,10 +303,7 @@ class FinancialController {
             break;
 
           default:
-            throw new ErrorHandler({
-              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-              httpCode: 404,
-            });
+            return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
         }
       }
     } else {
@@ -353,10 +351,7 @@ class FinancialController {
               break;
 
             default:
-              throw new ErrorHandler({
-                statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-                httpCode: 404,
-              });
+              return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
           }
         } else {
           switch (foundedTransaction.target) {
@@ -388,10 +383,7 @@ class FinancialController {
               break;
 
             default:
-              throw new ErrorHandler({
-                statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-                httpCode: 404,
-              });
+              return res.status(403).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
           }
         }
       }
@@ -466,10 +458,7 @@ class FinancialController {
         Payload: description,
       });
       if (foundedToken.Status !== 0) {
-        throw new ErrorHandler({
-          statusCode: StatusCodes.ERROR_SADERAT_TOKEN,
-          httpCode: 400,
-        });
+        return res.status(400).json({statusCode: StatusCodes.ERROR_SADERAT_TOKEN});
       }
 
       await Redis.saveEx(authority, {}, 660);
@@ -486,10 +475,7 @@ class FinancialController {
       });
 
       if (!foundedToken) {
-        throw new ErrorHandler({
-          statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN,
-          httpCode: 400,
-        });
+        return res.status(400).json({statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN});
       }
 
       await Redis.saveEx(authority, {}, 660);
@@ -506,7 +492,18 @@ class FinancialController {
   }
 
   async depositContinues(req, res) {
-    const {reason, target, getway, respcode, transaction, authority2, authority, digitalreceipt, Authority, Status} = req.query;
+    const {
+      reason,
+      target,
+      getway,
+      respcode,
+      transaction,
+      authority2,
+      authority,
+      digitalreceipt,
+      Authority,
+      Status
+    } = req.query;
     let foundedTransaction;
     let status;
 
@@ -570,10 +567,7 @@ class FinancialController {
             break;
 
           default:
-            throw new ErrorHandler({
-              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-              httpCode: 404,
-            });
+            return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
         }
       } else {
         await this.TransactionService.updateTransaction({
@@ -611,10 +605,7 @@ class FinancialController {
             break;
 
           default:
-            throw new ErrorHandler({
-              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-              httpCode: 404,
-            });
+            return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
         }
       }
     } else {
@@ -650,10 +641,7 @@ class FinancialController {
             break;
 
           default:
-            throw new ErrorHandler({
-              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-              httpCode: 404,
-            });
+            return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
         }
       } else {
         switch (foundedTransaction.target) {
@@ -685,10 +673,7 @@ class FinancialController {
             break;
 
           default:
-            throw new ErrorHandler({
-              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-              httpCode: 404,
-            });
+            return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
         }
       }
     }
@@ -733,10 +718,7 @@ class FinancialController {
     };
 
     if (factorsList.length <= 0 || price <= 0)
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_FACTOR_NOT_FOUND,
-        httpCode: 400,
-      });
+      return res.status(400).json({statusCode: StatusCodes.ERROR_FACTOR_NOT_FOUND});
 
     if (req.type === "DRIVER") price = price - (price / 100) * shares.driver;
     if (req.type === "COMPANY") price = price - ((price / 100) * shares.company + (price / 100) * shares.driver);
@@ -746,10 +728,7 @@ class FinancialController {
     const reason = "SERVICE_SUBSCRIPTION_FROM_WALLET";
 
     if (req.type !== "COMPANY")
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE,
-        httpCode: 400,
-      });
+      return res.status(400).json({statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE});
 
     let newFactorsList = [];
 
@@ -814,19 +793,13 @@ class FinancialController {
    */
   async payFactorsByIdOffline(req, res) {
     if (req.type !== "COMPANY") {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.AUTH_FAILED,
-        httpCode: 403,
-      });
+      return res.status(403).json({statusCode: StatusCodes.AUTH_FAILED});
     }
 
     const {factorList, fishId, payerType, offlinePayType} = req.body;
 
     if (factorList.length <= 0) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_FACTOR_NOT_FOUND,
-        httpCode: 400,
-      });
+      return res.status(400).json({statusCode: StatusCodes.ERROR_FACTOR_NOT_FOUND});
     }
 
     let newFactorsList = [];
@@ -941,10 +914,7 @@ class FinancialController {
     const driverfactores = await factorService.factorByDriverId(driverId);
 
     if (driverfactores.length <= 0) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_SERVICE_NOT_FOUND, // CODE: 6140
-        httpCode: 400,
-      });
+      return res.status(400).json({statusCode: StatusCodes.ERROR_SERVICE_NOT_FOUND});
     }
 
     let sumOfPrice = 0;
@@ -1015,10 +985,7 @@ class FinancialController {
         callbackURL: `${process.env.BASE_URL}/api/v1/financial/financial/pay-driver-continues?reason=${reason}&target=${target}&getway=saderat&authority2=${authority}`,
       });
       if (foundedToken.Status !== 0) {
-        throw new ErrorHandler({
-          statusCode: StatusCodes.ERROR_SADERAT_TOKEN,
-          httpCode: 400,
-        });
+        return res.status(400).json({statusCode: StatusCodes.ERROR_SADERAT_TOKEN});
       }
 
       await Redis.saveEx(authority, {}, 660);
@@ -1039,10 +1006,7 @@ class FinancialController {
       });
 
       if (!foundedToken) {
-        throw new ErrorHandler({
-          httpCode: 400,
-          statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN,
-        });
+        return res.status(400).json({statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN});
       }
 
       await Redis.saveEx(authority, {}, 660);
@@ -1081,10 +1045,7 @@ class FinancialController {
     // const driverfactores = await factorService.factorByDriverId(driverId);
 
     if (driverFactores.length <= 0) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_SERVICE_NOT_FOUND, // CODE: 6140
-        httpCode: 400,
-      });
+      return res.status(400).json({statusCode: StatusCodes.ERROR_SERVICE_NOT_FOUND});
     }
 
     let sumOfPrice = 0;
@@ -1100,10 +1061,7 @@ class FinancialController {
       const foundedFactor = await factorService.findById(driverFactores[key]);
 
       if (!foundedFactor || foundedFactor.status === "PAID") {
-        throw new ErrorHandler({
-          statusCode: StatusCodes.ERROR_FACTOR_NOT_FOUND, // CODE: 6140
-          httpCode: 400,
-        });
+        return res.status(400).json({statusCode: StatusCodes.ERROR_FACTOR_NOT_FOUND});
       }
 
       let price = foundedFactor.price;
@@ -1168,10 +1126,7 @@ class FinancialController {
       });
       console.log("2");
       if (foundedToken.Status !== 0) {
-        throw new ErrorHandler({
-          statusCode: StatusCodes.ERROR_SADERAT_TOKEN,
-          httpCode: 400,
-        });
+        return res.status(400).json({statusCode: StatusCodes.ERROR_SADERAT_TOKEN});
       }
       console.log("3");
 
@@ -1193,10 +1148,7 @@ class FinancialController {
       });
 
       if (!foundedToken) {
-        throw new ErrorHandler({
-          httpCode: 400,
-          statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN,
-        });
+        return res.status(400).json({statusCode: StatusCodes.ERROR_ZARINPAL_TOKEN});
       }
 
       await Redis.saveEx(authority, {}, 660);
@@ -1230,7 +1182,18 @@ class FinancialController {
    * @param {any} res
    */
   async payDriverSubscriptionContinues(req, res) {
-    const {reason, target, getway, respcode, transaction, authority2, authority, digitalreceipt, Authority, Status} = req.query;
+    const {
+      reason,
+      target,
+      getway,
+      respcode,
+      transaction,
+      authority2,
+      authority,
+      digitalreceipt,
+      Authority,
+      Status
+    } = req.query;
     let foundedTransactions;
     let status;
 
@@ -1323,10 +1286,7 @@ class FinancialController {
             );
 
           default:
-            throw new ErrorHandler({
-              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-              httpCode: 404,
-            });
+            return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
         }
       } else {
         await this.TransactionService.updateManyTransaction({
@@ -1358,10 +1318,7 @@ class FinancialController {
               })
             );
           default:
-            throw new ErrorHandler({
-              statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-              httpCode: 404,
-            });
+            return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
         }
       }
     } else {
@@ -1407,10 +1364,7 @@ class FinancialController {
               );
 
             default:
-              throw new ErrorHandler({
-                statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-                httpCode: 404,
-              });
+              return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
           }
         } else {
           switch (foundedTransactions[0].target) {
@@ -1440,51 +1394,13 @@ class FinancialController {
               );
 
             default:
-              throw new ErrorHandler({
-                statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND,
-                httpCode: 404,
-              });
+              return res.status(404).json({statusCode: StatusCodes.ERROR_TARGET_NOT_FOUND});
           }
         }
       }
     }
   }
 
-  // async transferToMainBalnceForCompany(req, res) {
-  //   const { amount } = req.body
-
-  //   const checkAmount = await this.FinancialService.checkProfitWallet({ amount, id: req.userId })
-  //   if (!checkAmount)
-  //     throw new ErrorHandler({
-  //       statusCode: StatusCodes.ERROR_AMOUNT_ENTERED_IS_LESS_THAN_BALANCE,
-  //       httpCode: 400,
-  //     })
-
-  //   const result = await this.FinancialService.transferToMainBalnceForCompany({ amount, id: req.userId })
-
-  //   await this.TransactionService.createTransaction({
-  //     amount,
-  //     transactionStatus: "SUCCESS",
-  //     payerId: req.userId,
-  //     payerType: req.type,
-  //     company: req.userId,
-  //     superAgent: result.companyInformation?.superAgent,
-  //     province: result.companyInformation?.province,
-  //     city: result.companyInformation?.city,
-  //     reason: "TRANSFER_PROFIT",
-  //     isForClient: true,
-  //     description: "انتقال از حساب سود به حساب اصلی",
-  //     isOnline: false,
-  //     isDeposit: true,
-  //   })
-
-  //   return ResponseHandler.send({
-  //     res,
-  //     statusCode: StatusCodes.RESPONSE_SUCCESSFUL,
-  //     httpCode: 200,
-  //     result,
-  //   })
-  // }
 }
 
 module.exports = new FinancialController();

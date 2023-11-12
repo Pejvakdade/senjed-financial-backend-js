@@ -31,10 +31,7 @@ class FinancialGroupController {
     const {id} = req.params;
     const foundedFinancialGroup = await this.financialGroupService.financialGroupExist(id);
     if (foundedFinancialGroup) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_FINANCIALGROUP_IS_ALREADY_USED,
-        httpCode: 400,
-      });
+      return res.status(400).json({ statusCode: StatusCodes.ERROR_FINANCIALGROUP_IS_ALREADY_USED });
     } else {
       await this.financialGroupService.deleteFinancialGroup(id);
     }
