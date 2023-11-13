@@ -93,11 +93,7 @@ class DebtService {
    */
   async errorIfDebtNotFoundByReceiverId(_id) {
     if (!(await this.DebtRepository.findDebtByReceiverId(_id))) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_DEBT_NOT_FOUND,
-        httpCode: 400,
-        message: `Deby by this _id: ${_id} not found`,
-      });
+      return res.status(404).json({ statusCode: StatusCodes.ERROR_DEBT_NOT_FOUND });
     }
   }
 
@@ -108,11 +104,7 @@ class DebtService {
    */
   errorIfNotAdmin(userType) {
     if (userType !== this.userRoles.ADMIN) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_ONLY_ADMIN,
-        httpCode: 403,
-        message: "Only Admin can call this Module",
-      });
+      return res.status(403).json({ statusCode: StatusCodes.ERROR_ONLY_ADMIN });
     }
   }
 
@@ -123,11 +115,7 @@ class DebtService {
    */
   errorIfNotComapny(userType) {
     if (userType !== this.userRoles.COMPANY) {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_ONLY_COMPANY,
-        httpCode: 403,
-        message: "Only company can call this Module",
-      });
+      return res.status(403).json({ statusCode: StatusCodes.ERROR_ONLY_COMPANY });
     }
   }
 

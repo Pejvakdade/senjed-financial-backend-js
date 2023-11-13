@@ -64,10 +64,7 @@ class WithdrawalService {
    */
   async throwErrorIfWithdrawalNotFoundOrNotPending(_id) {
     if (!(await this.findWithrawalById(_id)) && (await this.findWithrawalById(_id)).status !== "PENDING")
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_WITHDRAWAL_STATUS_NOT_PENDING,
-        httpCode: 400,
-      });
+      return res.status(400).json({ statusCode: StatusCodes.ERROR_WITHDRAWAL_STATUS_NOT_PENDING });
   }
 
   /**

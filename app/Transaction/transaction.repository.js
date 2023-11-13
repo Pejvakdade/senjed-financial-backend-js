@@ -98,6 +98,10 @@ class TransactionRepository {
   async faildMayTransactiondByDriverId(driverId) {
     return await SchoolTransaction.updateMany({driver: driverId}, {$set: {transactionStatus: "FAILED"}});
   }
+
+  async findTransactionById(_id) {
+    return await SchoolTransaction.findById(_id);
+  }
 }
 
 module.exports = new TransactionRepository(UtilService);

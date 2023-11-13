@@ -14,10 +14,7 @@ class ValidatorService {
     if (description) {
       return true
     } else {
-      throw new ErrorHandler({
-        statusCode: StatusCodes.ERROR_PARAM,
-        httpCode: 400
-      })
+      return res.status(400).json({ statusCode: StatusCodes.ERROR_PARAM });
     }
   }
 }

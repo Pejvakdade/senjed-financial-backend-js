@@ -1,9 +1,13 @@
 const ADMIN = "ADMIN";
-const COMPANY = "COMPANY";
 const DRIVER = "DRIVER";
+const COMPANY = "COMPANY";
+const PASSENGER = "PASSENGER";
+const SUPER_AGENT_SCHOOL = "SUPER_AGENT_SCHOOL";
 
 module.exports = {
   ADMIN,
-  COMPANY,
   DRIVER,
+  COMPANY,
+  PASSENGER,
+  SUPER_AGENT_SCHOOL,
 };

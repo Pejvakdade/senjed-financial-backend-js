@@ -111,6 +111,8 @@ class TransactionService {
     return result;
   }
 
+  findTransactionById = async (arg) => await this.transactionRepository.findTransactionById(arg)
+
   findTransactions = async (arg) => await this.transactionRepository.findTransactions(arg);
 
   updateManyTransaction = async (arg) => await this.transactionRepository.updateManyTransaction(arg);
