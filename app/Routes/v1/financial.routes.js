@@ -20,6 +20,7 @@ router.post("/deposit", Auth, use(FinancialController.deposit.bind(FinancialCont
 router.post("/pay-driver", Auth, use(FinancialController.payDriverSubscription.bind(FinancialController)));
 router.post("/pay-service", Auth, use(FinancialController.payServiceSubscription.bind(FinancialController)));
 router.post("/pay-driver-factor", Auth, use(FinancialController.payDriverSubscriptionByFactorIds.bind(FinancialController)));
+
 router.post("/pay-service-from-wallet", Auth, use(FinancialController.payServiceSubscriptionFromWalletForCompany.bind(FinancialController)));
 router.post("/pay-driver-factor-offline", Auth, use(FinancialController.payFactorsByIdOffline.bind(FinancialController)));
 

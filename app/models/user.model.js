@@ -194,6 +194,7 @@ const userSchema = new mongoose.Schema(
       },
       isCompleteRegistration: {type: Boolean, default: false},
       company: {type: mongoose.Schema.Types.ObjectId, ref: "User"},
+      deposit: {type: Number},
       updatedBy: {type: mongoose.Schema.Types.ObjectId, ref: "User"},
       updatedAt: {type: Date},
       companyName: {type: String},
@@ -322,7 +323,7 @@ const userSchema = new mongoose.Schema(
       createdAt: {type: Date},
       updatedBy: {type: mongoose.Schema.Types.ObjectId, ref: "User"},
       updatedAt: {type: Date},
-      isAdminPozMachine: { type: Boolean },
+      isAdminPozMachine: {type: Boolean},
       approved: {
         isApproved: {type: Boolean, default: false},
         approvedBy: {type: mongoose.Schema.Types.ObjectId, ref: "User"},

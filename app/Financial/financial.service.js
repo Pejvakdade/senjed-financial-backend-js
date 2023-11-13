@@ -9,8 +9,7 @@ const FinancialRepository = require("./financial.repository");
 const TransactionRepository = require("../Transaction/transaction.repository");
 
 const {StatusCodes, Message} = require("../Values");
-const userRoles = require("../Values/userRoles");
-const User = require("../models/user.model");
+const {ErrorHandler} = require("../Handler")
 
 class FinancialService {
 
@@ -20,6 +19,7 @@ class FinancialService {
     this.DebtService = DebtService;
     this.WithdrawalService = WithdrawalService;
     this.FinancialRepository = FinancialRepository;
+    this.ErrorHandler = ErrorHandler;
   }
 
   async internalMoneyTransfer({
@@ -42,7 +42,10 @@ class FinancialService {
         amount,
       });
       if (!checkWalletAmount) {
-        return res.status(400).json({statusCode: StatusCodes.ERROR_INSUFFICIENT_BALANCE});
+        throw new this.ErrorHandler({
+          httpCode: 400,
+          statusCode: StatusCodes.ERROR_INSUFFICIENT_BALANCE,
+        })
       }
 
       await TransactionRepository.createTransaction({
@@ -205,7 +208,6 @@ class FinancialService {
           }
         } else {
           const foundedCompanyDebt = await this.DebtService.findDebtPriceForCompany(foundedTransaction.company);
-          console.log({foundedCompanyDebt});
           let totalDebt = 0;
           let debtList = [];
           for (const i in foundedCompanyDebt) {
@@ -335,16 +337,13 @@ class FinancialService {
         //   userId: foundedTransaction.parent,
         //   message: Message.SUBSCRIPTION_DRIVER_SMS,
         // })
-        console.log({beforeChangeAmount: foundedTransaction.amount});
 
         await this.FinancialRepository.chargeWallet({
           id: foundedTransaction.payerId,
           amount: -(calculateOnePresent * shares.driver),
         });
-        console.log({calculateOnePresent});
         // COMMISSION_MANAGER_SCHOOL
 
-        console.log({poliKeAzDriverKamMishe: foundedTransaction.amount - (foundedTransaction.amount * shares.driver) / 100});
         await this.internalMoneyTransfer({
           reason: "SERVICE_SUBSCRIPTION_COMMISSION",
           payerId: foundedTransaction.payerId,
@@ -915,6 +914,7 @@ class FinancialService {
             amount: foundedTransaction.amount - (calculateOnePresent * shares.company + calculateOnePresent * shares.driver),
           });
 
+
           /** @type {Promise<any>} */
           const foundedCompany = await this.UserModel.findById(foundedService.company);
 
@@ -1037,7 +1037,6 @@ class FinancialService {
 
         break;
     }
-
     return true;
   }
 
@@ -1393,7 +1392,6 @@ class FinancialService {
                                                        }) {
     // ! ===============================================================================================================
     // ! ---------------------------------------------------------------------------------------------------------------
-
     /** COMMISSION_MANAGER */
     await this.internalMoneyTransfer({
       reason: "SERVICE_SUBSCRIPTION_COMMISSION",
@@ -1417,6 +1415,7 @@ class FinancialService {
       superAgent: foundedTransaction?.superAgent,
       phoneNumber: foundedService.company.phoneNumber,
     });
+
     /** COMPANY - MoneyTransfer */
     await this.internalMoneyTransfer({
       amount: (foundedTransaction.amount * (shares.company + shares.driver)) / 100, // ! Company and Driver share
@@ -1649,13 +1648,13 @@ class FinancialService {
    * @returns {Promise<void>}
    */
   async offLinePaymentCompanyWithoutWalletAndWithPozMachine({
-                                                                 shares,
-                                                                 foundedTaxId,
-                                                                 foundedService,
-                                                                 foundedTransaction,
-                                                                 foundedBankSchoolId,
-                                                                 calculateOnePresent,
-                                                               }) {
+                                                              shares,
+                                                              foundedTaxId,
+                                                              foundedService,
+                                                              foundedTransaction,
+                                                              foundedBankSchoolId,
+                                                              calculateOnePresent,
+                                                            }) {
     /** BANK_SCHOOL */
     await this.DebtService.createDebt({
       city: foundedTransaction?.city,
@@ -1725,6 +1724,25 @@ class FinancialService {
       superAgent: foundedTransaction?.superAgent,
       phoneNumber: foundedService.company.phoneNumber,
     });
+  }
+
+  /**
+   * - function for update Driver.schoolDriverInformation.deposit
+   *
+   * @memberof FinancialController.payDriverSubscription();
+   * @memberof FinancialController.payServiceSubscription();
+   * @memberof FinancialController.payDriverSubscriptionByFactorIds();
+   *
+   * @param {any} _id
+   * @param {number} deposit
+   * @returns {Promise<void>}
+   */
+  async updateDepositForDriver(_id, deposit){
+    if (deposit >= 0) {
+      await this.UserModel.findOneAndUpdate(_id, {"schoolDriverInformation.deposit": 0});
+    } else {
+      await this.UserModel.findOneAndUpdate(_id, {"schoolDriverInformation.deposit": deposit})
+    }
   }
 
 }
